@@ -1,0 +1,18 @@
+hooks:
+  ApplicationStop:
+    - location: scripts/stop.sh
+      timeout: 60
+      runas: ec2-user
+  BeforeInstall:
+    # 🚨 DB 소프트웨어 설치 및 시작 (1순위)
+    - location: scripts/db_setup.sh
+      timeout: 300
+      runas: ec2-user
+    # 🚨 DB 스키마 마이그레이션 실행 (2순위)
+    - location: scripts/db_migration.sh
+      timeout: 180
+      runas: ec2-user
+  ApplicationStart:
+    - location: scripts/start.sh
+      timeout: 120
+      runas: ec2-user
