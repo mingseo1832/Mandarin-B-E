@@ -1,4 +1,4 @@
-name: coinTalk chatRoom server CI/CD (Maven)
+name: Mandarin server CI/CD (Maven)
 
 on:
   push:
@@ -8,25 +8,54 @@ on:
 
 env:
   S3_BUCKET_NAME: cointalk-deploy
+  # Maven 빌드 아티팩트의 표준 경로를 위한 변수 설정
+  ARTIFACT_NAME: mandarin_backend-0.0.1-SNAPSHOT.jar 
+  # 주의: 이 이름(artifactId-version.jar)은 pom.xml의 내용과 일치해야 합니다.
 
 jobs:
-  build:
+  build_and_deploy: # Job 이름을 build_and_deploy로 변경 (더 명확하게)
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3 # 최신 버전 사용 권장
+    - uses: actions/checkout@v3 # 최신 액션 버전 사용
     
-    - name: Set up JDK 25 # Maven 프로젝트에 흔히 사용되는 JDK 17로 변경했습니다.
-      uses: actions/setup-java@v3 # 최신 버전 사용 권장
+    # 1. JDK 25 설정 (pom.xml의 <java.version>25</java.version>과 일치)
+    - name: Set up JDK 25
+      uses: actions/setup-java@v3
       with:
-        java-version: '25' 
+        java-version: '25' # ✅ pom.xml 설정에 맞춰 25로 변경
         distribution: 'temurin'
-        cache: 'maven' # Maven 캐싱 추가
+        cache: 'maven' # Maven 종속성 캐싱을 추가하여 빌드 속도 향상
         
-    # - name: Grant execute permission for gradlew # Gradle을 사용하지 않으므로 삭제합니다.
-    #   run: chmod +x gradlew
-    
-    # - name: Build with Gradle # Gradle 빌드 단계를 Maven 빌드 단계로 변경합니다.
+    # 2. Maven 빌드 실행
     - name: Build with Maven
-      run: mvn clean package # 'mvn clean package' 명령어로 빌드 및 JAR 파일 생성
+      # 'clean'으로 이전 빌드 제거 후 'package'로 컴파일, 테스트, JAR 패키징 수행
+      run: mvn clean package
+      
+    # 3. 배포 폴더 생성
+    - name: Make Deployment Directory
+      run: mkdir -p deploy
+        
+    # 4. JAR 파일 복사 (Maven 아티팩트 경로: ./target/artifactId-version.jar)
+    - name: Copy Jar to deploy folder
+      # 빌드된 JAR 파일을 target/에서 deploy/ 폴더로 복사합니다.
+      run: cp ./target/${{ env.ARTIFACT_NAME }} ./deploy/
+      
+    # 5. S3 업로드를 위한 zip 파일 생성
+    - name: Make zip file
+      # 'deploy/' 폴더 자체를 포함하여 압축합니다.
+      run: zip -r coinTalk.zip deploy/
+      shell: bash
+
+    # 6. AWS Credentials 설정
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4 # 최신 액션 버전 사용
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+
+    # 7. S3에 zip 파일 업로드
+    - name: Upload zip to S3
+      run: aws s3 cp --region ap-northeast-2 ./coinTalk.zip s3://${{ env.S3_BUCKET_NAME }}/
