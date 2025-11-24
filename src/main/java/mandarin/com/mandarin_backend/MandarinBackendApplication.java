@@ -8,6 +8,7 @@ public class MandarinBackendApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(MandarinBackendApplication.class, args);
+		// test.commit
 	}
 
 }
