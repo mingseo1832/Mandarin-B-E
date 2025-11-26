@@ -36,9 +36,9 @@ public class User {
             message = "비밀번호는 공백 없이 1~20자여야 합니다.")
     private String password;
 
-    // 러브타입 (ENFJ 등)
-    @Column(length = 5)
-    private String loveType;
+    // 러브타입 (번호로 부여)
+    @Column(nullable = false)
+    private Integer loveType;
 
     // 가입 시간
     @Column(nullable = false, updatable = false)
