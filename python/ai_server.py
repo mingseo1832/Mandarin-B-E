@@ -43,6 +43,9 @@ class AnalyzeRequest(BaseModel):
     text_content: str = Field(description="분석할 카카오톡 대화 내용")
     target_name: str = Field(description="분석 대상 인물 이름")
     period_days: int = Field(default=14, description="분석할 기간 (일 단위, 기본 14일)")
+    start_date: Optional[str] = Field(default=None, description="시작일 (YYYY-MM-DD 형식, 종료일과 함께 사용)")
+    end_date: Optional[str] = Field(default=None, description="종료일 (YYYY-MM-DD 형식, 시작일과 함께 사용)")
+    buffer_days: int = Field(default=7, description="시작일 이전 버퍼 일수 (기본 7일)")
 
 
 class ParseInfoResponse(BaseModel):
@@ -328,20 +331,55 @@ class KakaoTalkParser:
         dates = list(self.daily_chats.keys())
         return min(dates), max(dates)
     
-    def filter_by_period(self, days: int = 7, from_date: Optional[datetime] = None) -> Dict[datetime, List[dict]]:
-        """특정 기간의 대화만 필터링"""
+    def filter_by_period(
+        self, 
+        days: int = 7, 
+        from_date: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        buffer_days: int = 7
+    ) -> Dict[datetime, List[dict]]:
+        """특정 기간의 대화만 필터링
+        
+        두 가지 방식 지원:
+        1. from_date + days: 지정일로부터 N일 전까지 필터링 (기존 방식)
+        2. start_date + end_date: 시작일 - buffer_days부터 종료일까지 필터링 (새 방식)
+        
+        Args:
+            days: 필터링할 일수 (기존 방식에서 사용)
+            from_date: 기준일 (기존 방식에서 사용, None이면 최신 날짜)
+            start_date: 시작일 (새 방식에서 사용)
+            end_date: 종료일 (새 방식에서 사용)
+            buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 7일)
+        
+        Returns:
+            필터링된 날짜별 메시지 딕셔너리
+        
+        Note:
+            start_date와 end_date가 모두 제공되면 새 방식 우선 적용
+        """
         if not self.daily_chats:
             return {}
         
+        # 새 방식: start_date와 end_date가 모두 제공된 경우
+        if start_date is not None and end_date is not None:
+            actual_start = start_date - timedelta(days=buffer_days)
+            return OrderedDict(
+                (date, messages) 
+                for date, messages in self.daily_chats.items()
+                if actual_start <= date <= end_date
+            )
+        
+        # 기존 방식: from_date로부터 days일 전까지
         if from_date is None:
             from_date = max(self.daily_chats.keys())
         
-        start_date = from_date - timedelta(days=days)
+        calc_start_date = from_date - timedelta(days=days)
         
         return OrderedDict(
             (date, messages) 
             for date, messages in self.daily_chats.items()
-            if start_date <= date <= from_date
+            if calc_start_date <= date <= from_date
         )
     
     def filter_by_sender(self, sender_name: str, data: Optional[Dict] = None) -> Dict[datetime, List[dict]]:
@@ -406,32 +444,69 @@ def preprocess_kakao_text(
     text_content: str, 
     target_name: str,
     period_days: int = 14,
-    max_chars: int = 50000
+    max_chars: int = 50000,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    buffer_days: int = 7
 ) -> Tuple[str, dict]:
     """
-    카카오톡 텍스트 전처리 (기간 필터링 + 발신자 필터링)
+    카카오톡 텍스트 전처리 (기간 필터링, 전체 대화 맥락 유지)
+    
+    Args:
+        text_content: 카카오톡 대화 텍스트
+        target_name: 분석 대상 인물 이름 (존재 여부 확인용)
+        period_days: 필터링할 일수 (기존 방식에서 사용)
+        max_chars: 최대 문자 수 제한
+        start_date: 시작일 (새 방식에서 사용)
+        end_date: 종료일 (새 방식에서 사용)
+        buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 7일)
     
     Returns:
         (전처리된 텍스트, 통계 정보)
+    
+    Note:
+        - start_date와 end_date가 모두 제공되면 해당 기간으로 필터링,
+          그렇지 않으면 최신 날짜 기준 period_days일 전까지 필터링
+        - 전체 대화 맥락을 유지하여 GPT가 대화 흐름을 이해하면서
+          특정 인물의 말투를 분석할 수 있도록 함
     """
     parser = KakaoTalkParser(text_content)
     stats = parser.get_statistics()
     
-    # 1. 기간 필터링 (최근 N일)
-    period_data = parser.filter_by_period(days=period_days)
+    # 1. 기간 필터링
+    if start_date is not None and end_date is not None:
+        # 새 방식: 시작일 - buffer_days부터 종료일까지
+        period_data = parser.filter_by_period(
+            start_date=start_date,
+            end_date=end_date,
+            buffer_days=buffer_days
+        )
+        stats["filter_mode"] = "date_range"
+        stats["start_date"] = start_date.isoformat()
+        stats["end_date"] = end_date.isoformat()
+        stats["buffer_days"] = buffer_days
+    else:
+        # 기존 방식: 최근 N일
+        period_data = parser.filter_by_period(days=period_days)
+        stats["filter_mode"] = "recent_days"
+        stats["filtered_period_days"] = period_days
     
-    # 2. 특정 인물 필터링
-    filtered_data = parser.filter_by_sender(target_name, period_data)
+    # 2. 타겟 인물이 해당 기간에 존재하는지 확인
+    target_messages = parser.filter_by_sender(target_name, period_data)
+    if not target_messages:
+        stats["target_found"] = False
+    else:
+        stats["target_found"] = True
+        stats["target_message_count"] = sum(len(msgs) for msgs in target_messages.values())
     
-    # 3. 텍스트 변환
-    result_text = parser.to_text(filtered_data)
+    # 3. 전체 대화 텍스트 변환 (맥락 유지를 위해 특정 인물 필터링 제거)
+    result_text = parser.to_text(period_data)
     
     # 4. 최대 길이 제한 (최신 대화 우선)
     if len(result_text) > max_chars:
         result_text = result_text[-max_chars:]
     
     # 통계에 필터링 정보 추가
-    stats["filtered_period_days"] = period_days
     stats["target_name"] = target_name
     stats["filtered_char_count"] = len(result_text)
     
@@ -449,7 +524,7 @@ def build_system_prompt(text_content: str) -> str:
 제공된 [대화 내용]을 정밀 분석하여, 대화에 참여하는 인물이 누가 있는지 파악한 뒤, 사용자가 지정한 특정 인물의 '페르소나(Persona)'를 추출해야 합니다.
 
 [대화 내용]
-{text_content[:15000]}
+{text_content[-15000:]}
 
 [분석 지침]
 1. 'preferred_type' 판단 기준: 
@@ -588,7 +663,10 @@ def analyze_character(req: AnalyzeRequest):
     
     - **text_content**: 분석할 카카오톡 대화 텍스트
     - **target_name**: 분석 대상 인물 이름
-    - **period_days**: 분석할 기간 (기본 14일)
+    - **period_days**: 분석할 기간 (기본 14일, start_date/end_date 미지정 시 사용)
+    - **start_date**: 시작일 (YYYY-MM-DD 형식, end_date와 함께 사용)
+    - **end_date**: 종료일 (YYYY-MM-DD 형식, start_date와 함께 사용)
+    - **buffer_days**: 시작일 이전 버퍼 일수 (기본 7일)
     """
     if not req.text_content.strip():
         raise HTTPException(status_code=400, detail="대화 내용이 비어있습니다.")
@@ -596,20 +674,54 @@ def analyze_character(req: AnalyzeRequest):
     if not req.target_name.strip():
         raise HTTPException(status_code=400, detail="분석 대상 이름이 비어있습니다.")
     
-    # 전처리: 기간 필터링 + 타겟 인물 필터링
+    # 날짜 문자열을 datetime으로 변환
+    parsed_start_date = None
+    parsed_end_date = None
+    
+    if req.start_date and req.end_date:
+        try:
+            parsed_start_date = datetime.strptime(req.start_date, "%Y-%m-%d")
+            parsed_end_date = datetime.strptime(req.end_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400, 
+                detail="날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식으로 입력해주세요."
+            )
+        
+        if parsed_start_date > parsed_end_date:
+            raise HTTPException(
+                status_code=400,
+                detail="시작일이 종료일보다 늦을 수 없습니다."
+            )
+    elif req.start_date or req.end_date:
+        raise HTTPException(
+            status_code=400,
+            detail="시작일과 종료일을 모두 입력하거나, 둘 다 입력하지 마세요."
+        )
+    
+    # 전처리: 기간 필터링 (전체 대화 맥락 유지)
     processed_text, stats = preprocess_kakao_text(
         text_content=req.text_content,
         target_name=req.target_name,
-        period_days=req.period_days
+        period_days=req.period_days,
+        start_date=parsed_start_date,
+        end_date=parsed_end_date,
+        buffer_days=req.buffer_days
     )
     
     if not processed_text.strip():
         raise HTTPException(
             status_code=400, 
+            detail="해당 기간에 대화 내용이 없습니다."
+        )
+    
+    if not stats.get("target_found", False):
+        raise HTTPException(
+            status_code=400, 
             detail=f"'{req.target_name}'의 메시지를 찾을 수 없습니다. 참여자: {stats.get('participants', [])}"
         )
     
-    print(f"[분석] 대상: {req.target_name}, 기간: {req.period_days}일, 문자수: {stats['filtered_char_count']}")
+    print(f"[분석] 대상: {req.target_name}, 타겟 메시지 수: {stats.get('target_message_count', 0)}, 전체 문자수: {stats['filtered_char_count']}")
     
     system_prompt = build_system_prompt(processed_text)
     persona = extract_persona(req.target_name, system_prompt)
