@@ -33,5 +33,6 @@ build/
 
 ### Local Development ###
 application-local.properties
-### .env ###
+
+### env ###
 .env
