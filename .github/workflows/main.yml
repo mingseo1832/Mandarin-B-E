@@ -27,6 +27,7 @@ jobs:
         
     - name: Build with Maven and Inject Secrets
       run: mvn clean package
+      # NOTE: 이 env는 빌드 환경에서만 유효하며, 배포 실행 시에는 아래 SSH 스텝에서 다시 전달해야 합니다.
       env: 
         SPRING_DATASOURCE_URL: ${{ secrets.DB_URL }}
         SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
@@ -52,7 +53,7 @@ jobs:
     - name: Upload zip to S3
       run: aws s3 cp --region ap-northeast-2 ./mandarin.zip s3://${{ env.S3_BUCKET_NAME }}/
 
-    - name: Execute remote deployment script
+    - name: Execute remote deployment script (with DB secrets)
       uses: appleboy/ssh-action@v0.1.10
       with:
         host: ${{ secrets.SSH_HOST }}
@@ -60,6 +61,13 @@ jobs:
         port: ${{ secrets.SSH_PORT }}
         key: ${{ secrets.SSH_KEY }}
         timeout: 30m
+        # DB 연결을 위한 환경 변수를 원격 셸 세션에 export
         script: |
+          # SPRING_DATASOURCE_URL 환경 변수를 secrets에서 가져와 EC2 서버 셸에 설정합니다.
+          export SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}"
+          export SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}"
+          export SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}"
+          
+          # 배포 스크립트 실행
           chmod +x /home/${{ secrets.SSH_USERNAME }}/deploy.sh
           /home/${{ secrets.SSH_USERNAME }}/deploy.sh
