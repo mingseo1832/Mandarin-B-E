@@ -39,6 +39,10 @@ class UserPersona(BaseModel):
 # API 요청/응답 모델
 # ============================================================
 
+# [추가] /parse-info 요청을 위한 모델
+class ParseRequest(BaseModel):
+    text_content: str = Field(description="파싱할 카카오톡 대화 내용")
+
 class AnalyzeRequest(BaseModel):
     text_content: str = Field(description="분석할 카카오톡 대화 내용")
     target_name: str = Field(description="분석 대상 인물 이름")
@@ -642,15 +646,15 @@ def root():
 
 
 @app.post("/parse-info", response_model=ParseInfoResponse)
-def get_parse_info(text_content: str = Field(description="파싱할 카카오톡 대화 내용")):
+def get_parse_info(req: ParseRequest):
     """
     카카오톡 대화 내용을 파싱하여 기본 정보를 반환합니다.
     (참여자 목록, 대화 기간 등)
     """
-    if not text_content.strip():
+    if not req.text_content.strip():
         raise HTTPException(status_code=400, detail="대화 내용이 비어있습니다.")
     
-    parser = KakaoTalkParser(text_content)
+    parser = KakaoTalkParser(req.text_content)
     stats = parser.get_statistics()
     
     return ParseInfoResponse(**stats)
