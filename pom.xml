@@ -82,6 +82,7 @@
 
     <build>
         <plugins>
+            <finalName>mandarin_backend-0.0.1-SNAPSHOT</finalName>
 
             <!-- Lombok annotation processor -->
             <plugin>
