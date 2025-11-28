@@ -73,10 +73,70 @@ class ChatResponse(BaseModel):
 
 class ReportRequest(BaseModel):
     chat_logs: List[dict] = Field(description="분석할 대화 로그")
+    user_name: str = Field(description="사용자(본인) 이름")
+    target_name: str = Field(description="페르소나 대상(상대방) 이름")
+
+
+class ConversationScores(BaseModel):
+    """대화 점수 상세"""
+    overall_flow: int = Field(description="전체 대화 흐름 점수 (0-100)", ge=0, le=100)
+    emotional_connection: int = Field(description="감정적 교감 점수 (0-100)", ge=0, le=100)
+    interest_signal: int = Field(description="호감 신호 점수 (0-100)", ge=0, le=100)
+    conversation_skill: int = Field(description="대화 스킬 점수 (0-100)", ge=0, le=100)
+    timing_response: int = Field(description="타이밍/반응 적절성 점수 (0-100)", ge=0, le=100)
+
+
+class ChatMessage(BaseModel):
+    """채팅 메시지"""
+    role: Literal["user", "target"] = Field(description="발화자 (user: 사용자, target: 페르소나)")
+    content: str = Field(description="메시지 내용")
+
+
+class HighlightMoment(BaseModel):
+    """주요 순간 분석 - 대화 맥락 포함"""
+    moment_type: Literal["positive", "negative", "neutral"] = Field(description="순간 유형")
+    conversation: List[ChatMessage] = Field(
+        description="해당 순간의 대화 흐름 (사용자와 페르소나 간 2-4개 메시지)"
+    )
+    analysis: str = Field(description="해당 대화에 대한 분석")
+    suggestion: Optional[str] = Field(default=None, description="개선 제안 (부정적인 경우)")
+
+
+class RomanceAnalysisReport(BaseModel):
+    """연애 관점 대화 분석 보고서"""
+    # 종합 점수
+    total_score: int = Field(description="종합 호감도 점수 (0-100)", ge=0, le=100)
+    score_grade: Literal["S", "A", "B", "C", "D", "F"] = Field(description="등급")
+    
+    # 상세 점수
+    scores: ConversationScores = Field(description="상세 점수")
+    
+    # 대화 흐름 분석
+    flow_direction: Literal["매우 긍정적", "긍정적", "중립", "부정적", "매우 부정적"] = Field(
+        description="대화 흐름 방향"
+    )
+    flow_summary: str = Field(description="대화 흐름 요약 (2-3문장)")
+    
+    # 주요 순간들
+    highlight_moments: List[HighlightMoment] = Field(description="주요 순간 분석 (최대 5개)")
+    
+    # 호감도 분석
+    attraction_signals: List[str] = Field(description="상대방이 보인 호감 신호들")
+    red_flags: List[str] = Field(description="주의해야 할 부정적 신호들")
+    
+    # 종합 피드백
+    strengths: List[str] = Field(description="잘한 점 (최대 3개)")
+    improvements: List[str] = Field(description="개선할 점 (최대 3개)")
+    
+    # 다음 대화 조언
+    next_conversation_tips: List[str] = Field(description="다음 대화를 위한 조언 (최대 3개)")
+    
+    # 총평
+    overall_assessment: str = Field(description="종합 평가 (3-5문장)")
 
 
 class ReportResponse(BaseModel):
-    report: str = Field(description="생성된 보고서")
+    report: RomanceAnalysisReport = Field(description="생성된 연애 분석 보고서")
 
 
 # ============================================================
@@ -597,42 +657,77 @@ def generate_reply(persona: UserPersona, user_message: str, history: List[dict])
         return "죄송합니다. 응답 생성 중 오류가 발생했습니다."
 
 
-def analyze_chat_performance(chat_logs: List[dict]) -> str:
-    """대화 로그를 분석하여 보고서를 생성합니다."""
+def analyze_chat_performance(chat_logs: List[dict], user_name: str, target_name: str) -> Optional[RomanceAnalysisReport]:
+    """대화 로그를 분석하여 연애 관점의 보고서를 생성합니다.
+    
+    Args:
+        chat_logs: 대화 로그 리스트 (role, content 포함)
+        user_name: 사용자(본인) 이름
+        target_name: 페르소나 대상(상대방) 이름
+    
+    Returns:
+        RomanceAnalysisReport: 구조화된 연애 분석 보고서
+    """
     
     logs_text = "\n".join([
         f"{log.get('role', 'unknown')}: {log.get('content', '')}" 
         for log in chat_logs
     ])
     
-    analysis_prompt = f"""
-다음 대화 로그를 분석하여 상세 보고서를 작성해주세요.
+    system_prompt = f"""당신은 연애 심리 전문가이자 대화 코칭 전문가입니다.
+남녀 간의 대화를 분석하여 연애적 관점에서 평가하고 조언을 제공합니다.
+
+분석 시 다음 관점을 중점적으로 고려하세요:
+1. 대화의 감정적 흐름 (긍정적/부정적 방향성)
+2. 호감을 살 수 있는 발언 vs 호감을 떨어뜨리는 발언
+3. 상대방의 반응에서 읽히는 관심도/호감도 신호
+4. 대화 타이밍, 리액션의 적절성
+5. 밀당, 유머, 공감 등 연애 대화 스킬
+
+점수 기준:
+- 90-100 (S등급): 완벽한 대화, 확실한 호감 획득
+- 80-89 (A등급): 매우 좋은 대화, 호감 상승
+- 70-79 (B등급): 괜찮은 대화, 긍정적 인상
+- 60-69 (C등급): 평범한 대화, 특별한 인상 없음
+- 50-59 (D등급): 아쉬운 대화, 일부 개선 필요
+- 0-49 (F등급): 부정적 대화, 많은 개선 필요
+
+[highlight_moments 작성 규칙]
+- conversation 필드에는 해당 순간의 대화 흐름을 채팅창처럼 2-4개 메시지로 구성
+- role은 "user"(사용자: {user_name}) 또는 "target"(상대방: {target_name})
+- 대화의 맥락을 이해할 수 있도록 사용자 발언과 상대방 응답을 함께 포함
+- 예시: [
+    {{"role": "user", "content": "오늘 뭐해?"}},
+    {{"role": "target", "content": "그냥 집에~ 왜?"}},
+    {{"role": "user", "content": "심심하면 나랑 밥먹을래?"}}
+  ]
+
+사용자({user_name})의 발언을 중심으로 분석하고, 
+상대방({target_name})에게 어떤 인상을 주었을지 평가해주세요."""
+
+    analysis_prompt = f"""다음 대화를 연애 관점에서 분석해주세요.
+
+[참여자 정보]
+- 사용자(분석 대상): {user_name}
+- 상대방(페르소나): {target_name}
 
 [대화 로그]
 {logs_text}
 
-[보고서에 포함할 내용]
-1. 대화 요약 (주요 주제, 흐름)
-2. 페르소나 일관성 평가 (캐릭터 유지 정도)
-3. 대화 품질 평가 (자연스러움, 맥락 이해도)
-4. 개선 제안사항
-5. 총평
-
-한국어로 작성해주세요.
-"""
+위 대화에서 {user_name}의 발언이 {target_name}에게 호감을 살 만 했는지,
+대화가 전반적으로 긍정적인 방향으로 흘러갔는지 분석해주세요."""
     
     try:
-        response = client.chat.completions.create(
+        response = client.responses.parse(
             model=DEFAULT_MODEL,
-            messages=[
-                {"role": "system", "content": "당신은 대화 분석 전문가입니다."},
-                {"role": "user", "content": analysis_prompt}
-            ],
+            instructions=system_prompt,
+            input=analysis_prompt,
+            text_format=RomanceAnalysisReport,
         )
-        return response.choices[0].message.content
+        return response.output_parsed
     except Exception as e:
         print(f"보고서 생성 오류: {e}")
-        return "보고서 생성 중 오류가 발생했습니다."
+        return None
 
 
 # ============================================================
@@ -755,14 +850,29 @@ def chat_with_character(req: ChatRequest):
 @app.post("/report", response_model=ReportResponse)
 def create_report(req: ReportRequest):
     """
-    대화 로그를 분석하여 보고서를 생성합니다.
+    대화 로그를 연애 관점에서 분석하여 보고서를 생성합니다.
     
-    - **chat_logs**: 분석할 대화 로그 리스트
+    - **chat_logs**: 분석할 대화 로그 리스트 (role: user/assistant, content: 메시지)
+    - **user_name**: 사용자(본인) 이름
+    - **target_name**: 페르소나 대상(상대방) 이름
+    
+    Returns:
+        종합 점수, 상세 점수, 대화 흐름 분석, 호감도 분석, 개선점 등을 포함한 보고서
     """
     if not req.chat_logs:
         raise HTTPException(status_code=400, detail="대화 로그가 비어있습니다.")
     
-    report = analyze_chat_performance(req.chat_logs)
+    if not req.user_name.strip():
+        raise HTTPException(status_code=400, detail="사용자 이름이 비어있습니다.")
+    
+    if not req.target_name.strip():
+        raise HTTPException(status_code=400, detail="상대방 이름이 비어있습니다.")
+    
+    report = analyze_chat_performance(req.chat_logs, req.user_name, req.target_name)
+    
+    if not report:
+        raise HTTPException(status_code=500, detail="보고서 생성에 실패했습니다.")
+    
     return ReportResponse(report=report)
 
 
