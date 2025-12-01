@@ -87,8 +87,9 @@
     </dependencies>
 
     <build>
+        <finalName>mandarin_backend-0.0.1-SNAPSHOT</finalName>
+        
         <plugins>
-
             <!-- Lombok annotation processor -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
