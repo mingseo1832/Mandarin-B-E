@@ -36,3 +36,11 @@ application-local.properties
 
 ### env ###
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+### api test files ###
+test-api.http
