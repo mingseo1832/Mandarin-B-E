@@ -1,0 +1,8 @@
+POST http://localhost:8080/auth/signup
+Content-Type: application/json
+
+{
+  "userId": "minseo123",
+  "password": "**minseo1234",
+  "username": "정민서"
+}
