@@ -24,3 +24,4 @@ public class ChatRequestDto {
     private List<ChatLogDto> history = new ArrayList<>();
 }
 
+

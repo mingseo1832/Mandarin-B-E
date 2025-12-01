@@ -26,3 +26,4 @@ public class ConversationScoresDto {
     private int timingResponse;
 }
 
+

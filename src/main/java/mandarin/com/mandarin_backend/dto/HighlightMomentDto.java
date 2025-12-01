@@ -22,3 +22,4 @@ public class HighlightMomentDto {
     private String suggestion;  // nullable
 }
 
+
