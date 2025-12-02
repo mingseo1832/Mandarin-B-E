@@ -22,15 +22,24 @@ public class PersonaController {
     /**
      * JSON 요청으로 페르소나 분석
      * POST /api/persona/analyze
+     * 
+     * @param request textContent, targetName, periodDays, startDate, endDate, bufferDays
      */
     @PostMapping("/analyze")
     public ResponseEntity<UserPersonaDto> analyze(@RequestBody AnalyzeRequestDto request) {
         
-        System.out.println("[Analyze] JSON 요청 - 대상: " + request.getTargetName());
+        System.out.println("[Analyze] JSON 요청 - 대상: " + request.getTargetName() 
+            + ", 기간: " + (request.getStartDate() != null ? 
+                request.getStartDate() + "~" + request.getEndDate() : 
+                request.getPeriodDays() + "일"));
 
         UserPersonaDto result = analysisService.analyzePersona(
             request.getTextContent(), 
-            request.getTargetName()
+            request.getTargetName(),
+            request.getPeriodDays(),
+            request.getStartDate(),
+            request.getEndDate(),
+            request.getBufferDays()
         );
 
         return ResponseEntity.ok(result);
@@ -42,14 +51,24 @@ public class PersonaController {
      * 
      * @param file 카카오톡 대화 내보내기 텍스트 파일 (.txt)
      * @param targetName 분석 대상 인물 이름
+     * @param periodDays 분석할 기간 - 최근 N일 (기본값 14)
+     * @param startDate 시작일 (YYYY-MM-DD, endDate와 함께 사용 시 periodDays보다 우선)
+     * @param endDate 종료일 (YYYY-MM-DD)
+     * @param bufferDays 시작일 이전 버퍼 일수 (기본값 7)
      * @return 추출된 페르소나 정보
      */
     @PostMapping("/analyze/file")
     public ResponseEntity<UserPersonaDto> analyzeFromFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("targetName") String targetName) {
+            @RequestParam("targetName") String targetName,
+            @RequestParam(value = "periodDays", required = false, defaultValue = "14") Integer periodDays,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate,
+            @RequestParam(value = "bufferDays", required = false, defaultValue = "7") Integer bufferDays) {
         
-        System.out.println("[Analyze] 파일 업로드 - 파일명: " + file.getOriginalFilename() + ", 대상: " + targetName);
+        System.out.println("[Analyze] 파일 업로드 - 파일명: " + file.getOriginalFilename() 
+            + ", 대상: " + targetName
+            + ", 기간: " + (startDate != null ? startDate + "~" + endDate : periodDays + "일"));
 
         // 파일 유효성 검사
         if (file.isEmpty()) {
@@ -61,7 +80,8 @@ public class PersonaController {
             String textContent = new String(file.getBytes(), StandardCharsets.UTF_8);
             
             // Python 서버로 분석 요청
-            UserPersonaDto result = analysisService.analyzePersona(textContent, targetName);
+            UserPersonaDto result = analysisService.analyzePersona(
+                textContent, targetName, periodDays, startDate, endDate, bufferDays);
             
             return ResponseEntity.ok(result);
             
