@@ -43,4 +43,4 @@ __pycache__/
 *$py.class
 
 ### api test files ###
-test-api.http
+*.http
