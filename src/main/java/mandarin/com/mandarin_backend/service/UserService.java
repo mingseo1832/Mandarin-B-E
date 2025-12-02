@@ -29,7 +29,7 @@ public class UserService {
                 .userId(request.getUserId())
                 .username(request.getUsername())
                 .password(request.getPassword())
-                .loveType(0) 
+                .loveType(0)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -67,5 +67,22 @@ public class UserService {
             return ApiResponse.success("이미 사용 중인 아이디입니다.", false);
         }
         return ApiResponse.success("사용 가능한 아이디입니다.", true);
+    }
+
+
+    //  4. 사용자 탈퇴 기능 
+    public ApiResponse<Void> deleteUser(String userId) {
+
+        // 1) 해당 userId 존재 여부 확인
+        User user = userRepository.findByUserId(userId).orElse(null);
+
+        if (user == null) {
+            return ApiResponse.fail("존재하지 않는 사용자입니다.");
+        }
+
+        // 2) 삭제 처리
+        userRepository.delete(user);
+
+        return ApiResponse.success("탈퇴가 완료되었습니다.", null);
     }
 }
