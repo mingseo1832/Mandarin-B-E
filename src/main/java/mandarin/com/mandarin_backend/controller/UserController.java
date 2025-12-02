@@ -16,7 +16,6 @@ public class UserController {
 
     private final UserService userService;
 
-
     // 1. 회원가입 API
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signUp(@RequestBody SignUpRequest request) {
@@ -47,9 +46,24 @@ public class UserController {
     @GetMapping("/check-id")
     public ResponseEntity<ApiResponse<Boolean>> checkId(@RequestParam String userId) {
         ApiResponse<Boolean> response = userService.checkUserIdDuplicate(userId);
+
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
         }
         return ResponseEntity.badRequest().body(response);
+    }
+
+    //  4. 유저 탈퇴 API 
+    // DELETE /user/{userId}
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable String userId) {
+
+        ApiResponse<Void> response = userService.deleteUser(userId);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response); // 200 OK
+        }
+
+        return ResponseEntity.badRequest().body(response); // 실패 시 400
     }
 }
