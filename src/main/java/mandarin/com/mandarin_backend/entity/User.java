@@ -37,8 +37,9 @@ public class User {
     private String password;
 
     // 러브타입 (번호로 부여)
+    @Builder.Default
     @Column(nullable = false)
-    private Integer loveType;
+    private Integer loveType = 0;
 
     // 가입 시간
     @Column(nullable = false, updatable = false)
