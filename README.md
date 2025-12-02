@@ -65,4 +65,4 @@
 | **F/E (Frontend Engineer)** | [이동근, 성윤수] | React Native Expo 앱 UI/UX 구현, B/E API 연동, 앱 상태 관리 |
 | **B/E (Backend Engineer)** | [정민서, 제연우, 안도현] | Spring Boot API 서버 구축 및 관리, F/E-AI-DB 간의 데이터 흐름 설계 및 구현 |
 | **DB (Database Engineer)** | [정민서, 제연우, 안도현] | MySQL 스키마 설계 및 쿼리 최적화, 데이터 무결성 및 관리 |
-| **AI (AI/ML Engineer)** | [안도현] | LLM API 프롬프트 엔지니어링 및 최적화, 분석 리포트 로직 개발, B/E와의 효율적 연동 |
+| **AI (AI/ML Engineer)** | [안도현, 정민서서] | LLM API 프롬프트 엔지니어링 및 최적화, 분석 리포트 로직 개발, B/E와의 효율적 연동 |
