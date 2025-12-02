@@ -6,7 +6,7 @@ import mandarin.com.mandarin_backend.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/user")
 @RequiredArgsConstructor
 public class UserController {
 
