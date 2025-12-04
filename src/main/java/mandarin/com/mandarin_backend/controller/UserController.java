@@ -34,6 +34,7 @@ public class UserController {
     // 2. 로그인 API
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginRequest request) {
+
         ApiResponse<Void> response = userService.login(request);
 
         if (response.isSuccess()) {
@@ -44,8 +45,10 @@ public class UserController {
     }
 
     // 3. 아이디 중복 확인 API
+    // GET /user/check-id?userId=test123
     @GetMapping("/check-id")
     public ResponseEntity<ApiResponse<Boolean>> checkId(@RequestParam String userId) {
+
         ApiResponse<Boolean> response = userService.checkUserIdDuplicate(userId);
 
         // 성공 = 200 OK (중복 여부 data로 전달)

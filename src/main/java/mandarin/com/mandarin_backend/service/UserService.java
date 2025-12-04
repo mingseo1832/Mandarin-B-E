@@ -59,6 +59,8 @@ public class UserService {
     }
 
     // 3. 아이디 중복 확인 기능
+    // true = 중복됨, false = 사용 가능
+
     public ApiResponse<Boolean> checkUserIdDuplicate(String userId) {
 
         boolean exists = userRepository.existsByUserId(userId);
@@ -70,6 +72,7 @@ public class UserService {
         return ApiResponse.success("사용 가능한 아이디입니다.", false); // false = 사용 가능
     }
 
+    // 4. 사용자 탈퇴 기능
 
     public ApiResponse<Void> deleteUser(String userId) {
 
