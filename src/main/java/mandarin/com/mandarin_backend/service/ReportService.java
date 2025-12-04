@@ -1,6 +1,8 @@
 package mandarin.com.mandarin_backend.service;
 
 import mandarin.com.mandarin_backend.dto.*;
+import mandarin.com.mandarin_backend.entity.Report;
+import mandarin.com.mandarin_backend.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -15,6 +17,7 @@ import java.util.stream.Collectors;
 public class ReportService {
 
     private final WebClient webClient;
+    private final ReportRepository reportRepository;
 
     /**
      * 대화 로그를 시나리오 유형에 따라 분석하여 보고서 생성
@@ -60,6 +63,34 @@ public class ReportService {
                     return map;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * characterId로 해당 캐릭터의 최신 리포트 조회
+     * 
+     * @param characterId 캐릭터 ID
+     * @return 리포트 응답 DTO (ApiResponse 래핑)
+     */
+    public ApiResponse<ChatReportResponseDto> getChatReport(Long characterId) {
+        // 해당 캐릭터의 가장 최근 리포트 조회
+        Report report = reportRepository.findTopByCharacter_CharacterIdOrderByCreatedAtDesc(characterId);
+
+        if (report == null) {
+            return ApiResponse.fail("해당 캐릭터의 리포트가 존재하지 않습니다.");
+        }
+
+        // Entity -> DTO 변환
+        ChatReportResponseDto responseDto = ChatReportResponseDto.builder()
+                .reportId(report.getReportId())
+                .characterId(report.getCharacter().getCharacterId())
+                .characterName(report.getCharacter().getCharacterName())
+                .analysisSummary(report.getAnalysisSummary())
+                .suggestedActions(report.getSuggestedActions())
+                .visualDataJson(report.getVisualDataJson())
+                .createdAt(report.getCreatedAt())
+                .build();
+
+        return ApiResponse.success("리포트 조회 성공", responseDto);
     }
 }
 
