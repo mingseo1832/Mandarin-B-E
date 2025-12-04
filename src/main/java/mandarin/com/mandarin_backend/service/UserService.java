@@ -87,4 +87,24 @@ public class UserService {
 
         return ApiResponse.success("탈퇴가 완료되었습니다.", null);
     }
+
+    // 5. Love Type 업데이트 기능
+    public ApiResponse<Void> updateLoveType(String userId, Integer loveType) {
+
+        User user = userRepository.findByUserId(userId).orElse(null);
+
+        if (user == null) {
+            return ApiResponse.fail("존재하지 않는 사용자입니다.");
+        }
+
+        // loveType 유효성 검사 (0~15)
+        if (loveType == null || loveType < 0 || loveType > 15) {
+            return ApiResponse.fail("유효하지 않은 Love Type입니다. (0~15)");
+        }
+
+        user.setLoveType(loveType);
+        userRepository.save(user);
+
+        return ApiResponse.success("Love Type이 저장되었습니다.", null);
+    }
 }
