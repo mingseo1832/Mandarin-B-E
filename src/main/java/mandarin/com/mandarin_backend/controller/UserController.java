@@ -3,6 +3,7 @@ package mandarin.com.mandarin_backend.controller;
 import lombok.RequiredArgsConstructor;
 import mandarin.com.mandarin_backend.dto.ApiResponse;
 import mandarin.com.mandarin_backend.dto.LoginRequest;
+import mandarin.com.mandarin_backend.dto.LoveTypeRequestDto;
 import mandarin.com.mandarin_backend.dto.SignUpRequest;
 import mandarin.com.mandarin_backend.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,20 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable String userId) {
 
         ApiResponse<Void> response = userService.deleteUser(userId);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response); // 200 OK
+        }
+
+        return ResponseEntity.badRequest().body(response); // 실패 시 400
+    }
+
+    // 5. 러브타입 업데이트 API
+    // PUT /user/lovetype
+    @PutMapping("/lovetype")
+    public ResponseEntity<ApiResponse<Void>> updateLoveType(@RequestBody LoveTypeRequestDto request) {
+
+        ApiResponse<Void> response = userService.updateLoveType(request.getUserId(), request.getLoveType());
 
         if (response.isSuccess()) {
             return ResponseEntity.ok(response); // 200 OK
