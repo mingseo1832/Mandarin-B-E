@@ -49,7 +49,7 @@ public class UserService {
             return ApiResponse.fail("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        // 로그인 시 loveType 들어오면 저장
+        // 로그인 시 loveType 들어오면 업데이트
         if (request.getLoveType() != null) {
             user.setLoveType(request.getLoveType());
             userRepository.save(user);
@@ -59,28 +59,30 @@ public class UserService {
     }
 
     // 3. 아이디 중복 확인 기능
+    // true = 중복됨, false = 사용 가능
+
     public ApiResponse<Boolean> checkUserIdDuplicate(String userId) {
 
         boolean exists = userRepository.existsByUserId(userId);
 
         if (exists) {
-            return ApiResponse.success("이미 사용 중인 아이디입니다.", false);
+            return ApiResponse.success("이미 사용 중인 아이디입니다.", true);  // true = 중복
         }
-        return ApiResponse.success("사용 가능한 아이디입니다.", true);
+
+        return ApiResponse.success("사용 가능한 아이디입니다.", false); // false = 사용 가능
     }
 
+    // 4. 사용자 탈퇴 기능
 
-    //  4. 사용자 탈퇴 기능 
     public ApiResponse<Void> deleteUser(String userId) {
 
-        // 1) 해당 userId 존재 여부 확인
         User user = userRepository.findByUserId(userId).orElse(null);
 
         if (user == null) {
             return ApiResponse.fail("존재하지 않는 사용자입니다.");
         }
 
-        // 2) 삭제 처리
+        // 삭제 처리
         userRepository.delete(user);
 
         return ApiResponse.success("탈퇴가 완료되었습니다.", null);
