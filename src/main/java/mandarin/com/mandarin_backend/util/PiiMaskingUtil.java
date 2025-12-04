@@ -90,11 +90,13 @@ public class PiiMaskingUtil {
         // 예: "비번 1234" -> "비번 ****"
         // -----------------------------------------------------------
         Matcher pwMatcher = PASSWORD_PATTERN.matcher(masked);
+        StringBuilder pwBuilder = new StringBuilder();
         while (pwMatcher.find()) {
             String keyword = pwMatcher.group(1);
-            String replacement = keyword + " ****";
-            masked = masked.replace(pwMatcher.group(), replacement);
+            pwMatcher.appendReplacement(pwBuilder, Matcher.quoteReplacement(keyword + " ****"));
         }
+        pwMatcher.appendTail(pwBuilder);
+        masked = pwBuilder.toString();
 
         // -----------------------------------------------------------
         // 2. 주민등록번호 마스킹
@@ -107,32 +109,35 @@ public class PiiMaskingUtil {
         // 예: "1234-5678-9012-3456" -> "****-****-****-****"
         // -----------------------------------------------------------
         Matcher cardMatcher = CARD_PATTERN.matcher(masked);
+        StringBuilder cardBuilder = new StringBuilder();
         while (cardMatcher.find()) {
             String card = cardMatcher.group();
             String replacement = card.replaceAll("\\d", "*");
-            masked = masked.replace(card, replacement);
+            cardMatcher.appendReplacement(cardBuilder, Matcher.quoteReplacement(replacement));
         }
+        cardMatcher.appendTail(cardBuilder);
+        masked = cardBuilder.toString();
 
         // -----------------------------------------------------------
         // 4. 전화번호 마스킹
         // 예: "010-1234-5678" -> "010-****-****"
         // -----------------------------------------------------------
         Matcher phoneMatcher = PHONE_PATTERN.matcher(masked);
-        StringBuffer phoneBuffer = new StringBuffer();
+        StringBuilder phoneBuilder = new StringBuilder();
         while (phoneMatcher.find()) {
             String areaCode = phoneMatcher.group(1);  // 010, 02 등
-            // 중간 번호와 끝 번호는 마스킹
             String replacement = areaCode + "-****-****";
-            phoneMatcher.appendReplacement(phoneBuffer, replacement);
+            phoneMatcher.appendReplacement(phoneBuilder, Matcher.quoteReplacement(replacement));
         }
-        phoneMatcher.appendTail(phoneBuffer);
-        masked = phoneBuffer.toString();
+        phoneMatcher.appendTail(phoneBuilder);
+        masked = phoneBuilder.toString();
 
         // -----------------------------------------------------------
         // 5. 이메일 마스킹
         // 예: "test@naver.com" -> "te**@****.***"
         // -----------------------------------------------------------
         Matcher emailMatcher = EMAIL_PATTERN.matcher(masked);
+        StringBuilder emailBuilder = new StringBuilder();
         while (emailMatcher.find()) {
             String email = emailMatcher.group();
             int atIndex = email.indexOf("@");
@@ -144,8 +149,10 @@ public class PiiMaskingUtil {
             } else {
                 replacement = "***@****.***";
             }
-            masked = masked.replace(email, replacement);
+            emailMatcher.appendReplacement(emailBuilder, Matcher.quoteReplacement(replacement));
         }
+        emailMatcher.appendTail(emailBuilder);
+        masked = emailBuilder.toString();
 
         // -----------------------------------------------------------
         // 6. 계좌번호 마스킹
@@ -153,15 +160,21 @@ public class PiiMaskingUtil {
         // 주의: 하이픈이 포함된 11자리 이상만 처리 (오탐 방지)
         // -----------------------------------------------------------
         Matcher accountMatcher = ACCOUNT_PATTERN.matcher(masked);
+        StringBuilder accountBuilder = new StringBuilder();
         while (accountMatcher.find()) {
             String account = accountMatcher.group();
             
             // 오탐 방지: 이미 마스킹된 부분(*포함)은 건너뛰기
             if (!account.contains("*") && account.length() >= 11) {
                 String replacement = account.replaceAll("\\d", "*");
-                masked = masked.replace(account, replacement);
+                accountMatcher.appendReplacement(accountBuilder, Matcher.quoteReplacement(replacement));
+            } else {
+                // 조건에 맞지 않으면 원본 유지
+                accountMatcher.appendReplacement(accountBuilder, Matcher.quoteReplacement(account));
             }
         }
+        accountMatcher.appendTail(accountBuilder);
+        masked = accountBuilder.toString();
 
         // -----------------------------------------------------------
         // 7. URL 마스킹 (위치정보, 개인정보 포함 가능)
