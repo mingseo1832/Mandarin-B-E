@@ -75,8 +75,47 @@ public class PiiMaskingUtil {
     );
 
     /**
-     * 개인정보가 포함된 문자열을 받아 마스킹 처리하여 반환합니다.
-     * 처리 순서: 비밀번호 -> 주민번호 -> 카드번호 -> 전화번호 -> 이메일 -> 계좌번호 -> URL
+     * 최소한의 민감 정보만 마스킹 (분석 정확도 유지)
+     * 대상: 주민번호, 카드번호, 비밀번호
+     * 용도: AI 분석 전 전처리 (말투 패턴에 영향 없는 정보만 마스킹)
+     */
+    public static String maskSensitiveOnly(String content) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+
+        String masked = content;
+
+        // 1. 비밀번호 마스킹
+        Matcher pwMatcher = PASSWORD_PATTERN.matcher(masked);
+        StringBuilder pwBuilder = new StringBuilder();
+        while (pwMatcher.find()) {
+            String keyword = pwMatcher.group(1);
+            pwMatcher.appendReplacement(pwBuilder, Matcher.quoteReplacement(keyword + " ****"));
+        }
+        pwMatcher.appendTail(pwBuilder);
+        masked = pwBuilder.toString();
+
+        // 2. 주민등록번호 마스킹
+        masked = RRN_PATTERN.matcher(masked).replaceAll("******-*******");
+
+        // 3. 카드번호 마스킹
+        Matcher cardMatcher = CARD_PATTERN.matcher(masked);
+        StringBuilder cardBuilder = new StringBuilder();
+        while (cardMatcher.find()) {
+            String card = cardMatcher.group();
+            String replacement = card.replaceAll("\\d", "*");
+            cardMatcher.appendReplacement(cardBuilder, Matcher.quoteReplacement(replacement));
+        }
+        cardMatcher.appendTail(cardBuilder);
+        masked = cardBuilder.toString();
+
+        return masked;
+    }
+
+    /**
+     * 전체 개인정보 마스킹 (저장/외부 노출 시 사용)
+     * 처리 순서: 비밀번호 -> 주민번호 -> 카드번호 -> 전화번호 -> 이메일 -> 계좌번호 -> URL -> 주소
      */
     public static String mask(String content) {
         if (content == null || content.isEmpty()) {
