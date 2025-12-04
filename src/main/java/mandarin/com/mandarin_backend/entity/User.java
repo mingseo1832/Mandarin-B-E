@@ -36,9 +36,10 @@ public class User {
             message = "비밀번호는 공백 없이 1~20자여야 합니다.")
     private String password;
 
-    // 러브타입 (번호로 부여)
+    // 러브타입 (번호로 부여, 0~15: 실제 타입, 16: 미설정)
+    @Builder.Default
     @Column(nullable = false)
-    private Integer loveType;
+    private Integer loveType = 16;
 
     // 가입 시간
     @Column(nullable = false, updatable = false)
