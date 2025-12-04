@@ -49,7 +49,7 @@ class AnalyzeRequest(BaseModel):
     period_days: int = Field(default=14, description="분석할 기간 (일 단위, 기본 14일)")
     start_date: Optional[str] = Field(default=None, description="시작일 (YYYY-MM-DD 형식, 종료일과 함께 사용)")
     end_date: Optional[str] = Field(default=None, description="종료일 (YYYY-MM-DD 형식, 시작일과 함께 사용)")
-    buffer_days: int = Field(default=0, description="시작일 이전 버퍼 일수 (기본 0일)")
+    buffer_days: int = Field(default=7, description="시작일 이전 버퍼 일수 (기본 7일)")
 
 
 class ParseInfoResponse(BaseModel):
@@ -75,68 +75,50 @@ class ReportRequest(BaseModel):
     chat_logs: List[dict] = Field(description="분석할 대화 로그")
     user_name: str = Field(description="사용자(본인) 이름")
     target_name: str = Field(description="페르소나 대상(상대방) 이름")
+    scenario_type: Literal["FUTURE", "PAST"] = Field(description="시나리오 유형 (FUTURE: 미래 시뮬레이션, PAST: 과거 후회 시뮬레이션)")
 
 
-class ConversationScores(BaseModel):
-    """대화 점수 상세"""
-    overall_flow: int = Field(description="전체 대화 흐름 점수 (0-100)", ge=0, le=100)
-    emotional_connection: int = Field(description="감정적 교감 점수 (0-100)", ge=0, le=100)
-    interest_signal: int = Field(description="호감 신호 점수 (0-100)", ge=0, le=100)
-    conversation_skill: int = Field(description="대화 스킬 점수 (0-100)", ge=0, le=100)
-    timing_response: int = Field(description="타이밍/반응 적절성 점수 (0-100)", ge=0, le=100)
-
-
-class ChatMessage(BaseModel):
-    """채팅 메시지"""
-    role: Literal["user", "target"] = Field(description="발화자 (user: 사용자, target: 페르소나)")
+class KeyConversation(BaseModel):
+    """점수 산정에 영향을 준 주요 대화"""
+    role: Literal["user", "assistant"] = Field(description="발화자 (user: 사용자, assistant: 페르소나)")
     content: str = Field(description="메시지 내용")
 
 
-class HighlightMoment(BaseModel):
-    """주요 순간 분석 - 대화 맥락 포함"""
-    moment_type: Literal["positive", "negative", "neutral"] = Field(description="순간 유형")
-    conversation: List[ChatMessage] = Field(
-        description="해당 순간의 대화 흐름 (사용자와 페르소나 간 2-4개 메시지)"
+class MetricScore(BaseModel):
+    """개별 평가 지표 점수"""
+    code: str = Field(description="지표 코드 (ECI, EVR, CCS 또는 RRI, EEQI, RPS)")
+    name: str = Field(description="지표 이름")
+    score: int = Field(description="점수 (0-100)", ge=0, le=100)
+    reason: str = Field(description="점수 산정 이유 (한 문장)")
+    key_conversations: List[KeyConversation] = Field(
+        description="이 점수 산정에 주요 영향을 준 대화 내역 (2-4개 메시지)"
     )
-    analysis: str = Field(description="해당 대화에 대한 분석")
-    suggestion: Optional[str] = Field(default=None, description="개선 제안 (부정적인 경우)")
 
 
-class RomanceAnalysisReport(BaseModel):
-    """연애 관점 대화 분석 보고서"""
-    # 종합 점수
-    total_score: int = Field(description="종합 호감도 점수 (0-100)", ge=0, le=100)
-    score_grade: Literal["S", "A", "B", "C", "D", "F"] = Field(description="등급")
-    
-    # 상세 점수
-    scores: ConversationScores = Field(description="상세 점수")
-    
-    # 대화 흐름 분석
-    flow_direction: Literal["매우 긍정적", "긍정적", "중립", "부정적", "매우 부정적"] = Field(
-        description="대화 흐름 방향"
-    )
-    flow_summary: str = Field(description="대화 흐름 요약 (2-3문장)")
-    
-    # 주요 순간들
-    highlight_moments: List[HighlightMoment] = Field(description="주요 순간 분석 (최대 5개)")
-    
-    # 호감도 분석
-    attraction_signals: List[str] = Field(description="상대방이 보인 호감 신호들")
-    red_flags: List[str] = Field(description="주의해야 할 부정적 신호들")
-    
-    # 종합 피드백
-    strengths: List[str] = Field(description="잘한 점 (최대 3개)")
-    improvements: List[str] = Field(description="개선할 점 (최대 3개)")
-    
-    # 다음 대화 조언
-    next_conversation_tips: List[str] = Field(description="다음 대화를 위한 조언 (최대 3개)")
-    
-    # 총평
-    overall_assessment: str = Field(description="종합 평가 (3-5문장)")
+class ScenarioScores(BaseModel):
+    """시나리오별 평가 점수"""
+    metric_1: MetricScore = Field(description="첫 번째 지표 (ECI 또는 RRI)")
+    metric_2: MetricScore = Field(description="두 번째 지표 (EVR 또는 EEQI)")
+    metric_3: MetricScore = Field(description="세 번째 지표 (CCS 또는 RPS)")
+
+
+class ReportContent(BaseModel):
+    """리포트 상세 내용"""
+    analysis: str = Field(description="전반적인 대화 흐름과 사용자의 태도에 대한 상세 분석 (200자 내외)")
+    feedback: str = Field(description="더 나은 결과를 위해 사용자에게 주는 구체적인 조언")
+    overall_rating: int = Field(description="전체 리포트 점수의 평균값 (0-100)", ge=0, le=100)
+
+
+class SimulationReport(BaseModel):
+    """시뮬레이션 대화 분석 보고서"""
+    summary: str = Field(description="대화 내용에 대한 3줄 요약")
+    scenario_type: Literal["FUTURE", "PAST"] = Field(description="시나리오 유형")
+    scores: ScenarioScores = Field(description="시나리오별 평가 점수")
+    report: ReportContent = Field(description="리포트 상세 내용")
 
 
 class ReportResponse(BaseModel):
-    report: RomanceAnalysisReport = Field(description="생성된 연애 분석 보고서")
+    report: SimulationReport = Field(description="생성된 시뮬레이션 분석 보고서")
 
 
 # ============================================================
@@ -401,7 +383,7 @@ class KakaoTalkParser:
         from_date: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        buffer_days: int = 0
+        buffer_days: int = 7
     ) -> Dict[datetime, List[dict]]:
         """특정 기간의 대화만 필터링
         
@@ -414,7 +396,7 @@ class KakaoTalkParser:
             from_date: 기준일 (기존 방식에서 사용, None이면 최신 날짜)
             start_date: 시작일 (새 방식에서 사용)
             end_date: 종료일 (새 방식에서 사용)
-            buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 0일)
+            buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 7일)
         
         Returns:
             필터링된 날짜별 메시지 딕셔너리
@@ -511,7 +493,7 @@ def preprocess_kakao_text(
     max_chars: int = 50000,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    buffer_days: int = 0
+    buffer_days: int = 7
 ) -> Tuple[str, dict]:
     """
     카카오톡 텍스트 전처리 (기간 필터링, 전체 대화 맥락 유지)
@@ -523,7 +505,7 @@ def preprocess_kakao_text(
         max_chars: 최대 문자 수 제한
         start_date: 시작일 (새 방식에서 사용)
         end_date: 종료일 (새 방식에서 사용)
-        buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 0일)
+        buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 7일)
     
     Returns:
         (전처리된 텍스트, 통계 정보)
@@ -657,16 +639,22 @@ def generate_reply(persona: UserPersona, user_message: str, history: List[dict])
         return "죄송합니다. 응답 생성 중 오류가 발생했습니다."
 
 
-def analyze_chat_performance(chat_logs: List[dict], user_name: str, target_name: str) -> Optional[RomanceAnalysisReport]:
-    """대화 로그를 분석하여 연애 관점의 보고서를 생성합니다.
+def analyze_chat_performance(
+    chat_logs: List[dict], 
+    user_name: str, 
+    target_name: str,
+    scenario_type: str
+) -> Optional[SimulationReport]:
+    """대화 로그를 분석하여 시나리오별 보고서를 생성합니다.
     
     Args:
         chat_logs: 대화 로그 리스트 (role, content 포함)
         user_name: 사용자(본인) 이름
         target_name: 페르소나 대상(상대방) 이름
+        scenario_type: 시나리오 유형 ("FUTURE" 또는 "PAST")
     
     Returns:
-        RomanceAnalysisReport: 구조화된 연애 분석 보고서
+        SimulationReport: 구조화된 시뮬레이션 분석 보고서
     """
     
     logs_text = "\n".join([
@@ -674,55 +662,92 @@ def analyze_chat_performance(chat_logs: List[dict], user_name: str, target_name:
         for log in chat_logs
     ])
     
-    system_prompt = f"""당신은 연애 심리 전문가이자 대화 코칭 전문가입니다.
-남녀 간의 대화를 분석하여 연애적 관점에서 평가하고 조언을 제공합니다.
+    system_prompt = f"""당신은 인간 관계 시뮬레이션 및 대화 분석 전문가입니다.
+사용자와 AI 페르소나 간의 대화 로그를 분석하여, 제시된 시나리오 유형에 맞는 평가 지표를 기반으로 
+정량적 점수(0~100점)를 산출하고, 통찰력 있는 피드백 리포트를 작성해야 합니다.
 
-분석 시 다음 관점을 중점적으로 고려하세요:
-1. 대화의 감정적 흐름 (긍정적/부정적 방향성)
-2. 호감을 살 수 있는 발언 vs 호감을 떨어뜨리는 발언
-3. 상대방의 반응에서 읽히는 관심도/호감도 신호
-4. 대화 타이밍, 리액션의 적절성
-5. 밀당, 유머, 공감 등 연애 대화 스킬
+# Evaluation Guidelines
 
-점수 기준:
-- 90-100 (S등급): 완벽한 대화, 확실한 호감 획득
-- 80-89 (A등급): 매우 좋은 대화, 호감 상승
-- 70-79 (B등급): 괜찮은 대화, 긍정적 인상
-- 60-69 (C등급): 평범한 대화, 특별한 인상 없음
-- 50-59 (D등급): 아쉬운 대화, 일부 개선 필요
-- 0-49 (F등급): 부정적 대화, 많은 개선 필요
+{"## [미래 시뮬레이션] (Future Simulation)" if scenario_type == "FUTURE" else "## [과거 후회 시뮬레이션] (Past Regret Simulation)"}
 
-[highlight_moments 작성 규칙]
-- conversation 필드에는 해당 순간의 대화 흐름을 채팅창처럼 2-4개 메시지로 구성
-- role은 "user"(사용자: {user_name}) 또는 "target"(상대방: {target_name})
-- 대화의 맥락을 이해할 수 있도록 사용자 발언과 상대방 응답을 함께 포함
+{'''이 상황은 현재 관계를 바탕으로 일어날법한 미래를 연습하는 상황입니다.
+
+1. **관계 유지력 (ECI)**
+   - 기준: 사용자의 발화가 공감과 긍정을 얼마나 담고 있는가?
+   - 평가 요소: 공감 표현(상대 감정 읽기), 긍정적 단어 사용 빈도, 부정적 비난/공격성 최소화.
+   - 높은 점수: 상대방에게 따뜻하고 긍정적인 인상을 주어 관계가 지속될 가능성이 높음.
+
+2. **감정 안정성 (EVR)** (주의: 점수가 높을수록 **위험**함)
+   - 기준: 대화 중 감정의 기복이나 변동성이 얼마나 심한가?
+   - 평가 요소: 감정이 급격하게 변하거나(조울), 일관되지 않은 태도.
+   - 높은 점수: 감정 기복이 심하여 관계에 리스크가 큼. (낮을수록 안정적임)
+
+3. **선택 일관성 (CCS)**
+   - 기준: 말과 행동, 의도가 일관적인가?
+   - 평가 요소: 앞뒤가 다른 말(모순), 내적 갈등 표현의 비율.
+   - 높은 점수: 확신이 있고 주관이 뚜렷하며 안정적인 선택을 함.
+
+[scores 작성 규칙 - 미래 시뮬레이션]
+- metric_1: code="ECI", name="관계 유지력"
+- metric_2: code="EVR", name="감정 안정성" (높을수록 위험!)
+- metric_3: code="CCS", name="선택 일관성"''' if scenario_type == "FUTURE" else '''이 상황은 과거에 후회했던 순간으로 돌아가 다른 선택을 해보는 상황입니다.
+
+1. **후회 해소도 (RRI)**
+   - 기준: "그때 이렇게 말했으면 후회하지 않았을까?"를 평가.
+   - 평가 요소: 진정성 있는 사과, 책임 인정, 상대방에 대한 공감, 부정적 감정 억제.
+   - 높은 점수: 과거의 미련을 털어버릴 수 있는 충분히 훌륭한 대처였음.
+
+2. **감정 표현 성숙도 (EEQI)**
+   - 기준: 솔직하지만 성숙하게 감정을 전달했는가?
+   - 평가 요소: 자신의 감정을 숨기지 않는 솔직함(Honesty) + 상대를 비난하지 않고 '나' 화법을 쓰는 성숙함(Maturity).
+   - 높은 점수: 감정을 억누르거나 폭발시키지 않고 건강하게 표현함.
+
+3. **관계 회복력 (RPS)**
+   - 기준: 이 대화가 당시의 갈등을 해결하고 관계를 회복시킬 잠재력이 있는가?
+   - 평가 요소: 차분한 태도(Calmness), 구체적인 해결 의지, 상대방의 화를 가라앉히는 능력.
+   - 높은 점수: 파국을 막고 관계를 개선할 가능성이 매우 높음.
+
+[scores 작성 규칙 - 과거 후회 시뮬레이션]
+- metric_1: code="RRI", name="후회 해소도"
+- metric_2: code="EEQI", name="감정 표현 성숙도"
+- metric_3: code="RPS", name="관계 회복력"'''}
+
+[key_conversations 작성 규칙]
+- 각 metric의 점수 산정에 가장 큰 영향을 준 대화 내역을 2-4개 메시지로 구성
+- role은 "user"(사용자) 또는 "assistant"(페르소나/상대방)
+- 대화의 맥락을 이해할 수 있도록 주고받은 메시지를 순서대로 포함
 - 예시: [
-    {{"role": "user", "content": "오늘 뭐해?"}},
-    {{"role": "target", "content": "그냥 집에~ 왜?"}},
-    {{"role": "user", "content": "심심하면 나랑 밥먹을래?"}}
+    {{"role": "user", "content": "미안해, 내가 잘못했어"}},
+    {{"role": "assistant", "content": "갑자기 왜 그래?"}}
   ]
 
-사용자({user_name})의 발언을 중심으로 분석하고, 
-상대방({target_name})에게 어떤 인상을 주었을지 평가해주세요."""
+[리포트 작성 규칙]
+- summary: 대화 내용을 3줄로 요약
+- scenario_type: "{scenario_type}"
+- report.analysis: 전반적인 대화 흐름과 사용자의 태도에 대한 상세 분석 (200자 내외)
+- report.feedback: 구체적인 조언 (예: "상대방이 화를 낼 때는 ~~하게 반응하는 것이 좋습니다.")
+- report.overall_rating: 세 지표 점수의 평균값 (정수)"""
 
-    analysis_prompt = f"""다음 대화를 연애 관점에서 분석해주세요.
+    analysis_prompt = f"""다음 대화를 분석해주세요.
+
+[시나리오 유형]
+{"미래 시뮬레이션 - 현재 관계를 바탕으로 일어날법한 미래 연습" if scenario_type == "FUTURE" else "과거 후회 시뮬레이션 - 과거에 후회했던 순간으로 돌아가 다른 선택"}
 
 [참여자 정보]
-- 사용자(분석 대상): {user_name}
+- 사용자: {user_name}
 - 상대방(페르소나): {target_name}
 
 [대화 로그]
 {logs_text}
 
-위 대화에서 {user_name}의 발언이 {target_name}에게 호감을 살 만 했는지,
-대화가 전반적으로 긍정적인 방향으로 흘러갔는지 분석해주세요."""
+위 대화에서 {user_name}의 발언을 중심으로 시나리오 유형에 맞는 평가 지표로 분석해주세요."""
     
     try:
         response = client.responses.parse(
             model=DEFAULT_MODEL,
             instructions=system_prompt,
             input=analysis_prompt,
-            text_format=RomanceAnalysisReport,
+            text_format=SimulationReport,
         )
         return response.output_parsed
     except Exception as e:
@@ -765,7 +790,7 @@ def analyze_character(req: AnalyzeRequest):
     - **period_days**: 분석할 기간 (기본 14일, start_date/end_date 미지정 시 사용)
     - **start_date**: 시작일 (YYYY-MM-DD 형식, end_date와 함께 사용)
     - **end_date**: 종료일 (YYYY-MM-DD 형식, start_date와 함께 사용)
-    - **buffer_days**: 시작일 이전 버퍼 일수 (기본 0일)
+    - **buffer_days**: 시작일 이전 버퍼 일수 (기본 7일)
     """
     if not req.text_content.strip():
         raise HTTPException(status_code=400, detail="대화 내용이 비어있습니다.")
@@ -850,14 +875,15 @@ def chat_with_character(req: ChatRequest):
 @app.post("/report", response_model=ReportResponse)
 def create_report(req: ReportRequest):
     """
-    대화 로그를 연애 관점에서 분석하여 보고서를 생성합니다.
+    대화 로그를 시나리오 유형에 따라 분석하여 보고서를 생성합니다.
     
     - **chat_logs**: 분석할 대화 로그 리스트 (role: user/assistant, content: 메시지)
     - **user_name**: 사용자(본인) 이름
     - **target_name**: 페르소나 대상(상대방) 이름
+    - **scenario_type**: 시나리오 유형 (FUTURE: 미래 시뮬레이션, PAST: 과거 후회 시뮬레이션)
     
     Returns:
-        종합 점수, 상세 점수, 대화 흐름 분석, 호감도 분석, 개선점 등을 포함한 보고서
+        시나리오별 평가 지표 점수와 분석, 피드백을 포함한 보고서
     """
     if not req.chat_logs:
         raise HTTPException(status_code=400, detail="대화 로그가 비어있습니다.")
@@ -868,7 +894,12 @@ def create_report(req: ReportRequest):
     if not req.target_name.strip():
         raise HTTPException(status_code=400, detail="상대방 이름이 비어있습니다.")
     
-    report = analyze_chat_performance(req.chat_logs, req.user_name, req.target_name)
+    report = analyze_chat_performance(
+        req.chat_logs, 
+        req.user_name, 
+        req.target_name,
+        req.scenario_type
+    )
     
     if not report:
         raise HTTPException(status_code=500, detail="보고서 생성에 실패했습니다.")

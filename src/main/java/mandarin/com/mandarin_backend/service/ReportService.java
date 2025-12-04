@@ -20,19 +20,21 @@ public class ReportService {
     private final ReportRepository reportRepository;
 
     /**
-     * 대화 로그를 분석하여 연애 관점 보고서 생성
+     * 대화 로그를 시나리오 유형에 따라 분석하여 보고서 생성
      * 
      * @param chatLogs 대화 로그 리스트
      * @param userName 사용자(본인) 이름
      * @param targetName 상대방(페르소나) 이름
-     * @return 연애 분석 보고서
+     * @param scenarioType 시나리오 유형 ("FUTURE": 미래 시뮬레이션, "PAST": 과거 후회 시뮬레이션)
+     * @return 시뮬레이션 분석 보고서
      */
-    public ReportResponseDto createReport(List<ChatLogDto> chatLogs, String userName, String targetName) {
+    public ReportResponseDto createReport(List<ChatLogDto> chatLogs, String userName, String targetName, String scenarioType) {
         // Python 서버로 보낼 데이터 준비
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("chat_logs", convertChatLogsToList(chatLogs));
         requestBody.put("user_name", userName);
         requestBody.put("target_name", targetName);
+        requestBody.put("scenario_type", scenarioType);
 
         // Python 서버 호출 (POST /report)
         ReportResponseDto response = webClient.post()

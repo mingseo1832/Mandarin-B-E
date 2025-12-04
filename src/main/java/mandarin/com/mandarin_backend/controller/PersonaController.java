@@ -4,6 +4,8 @@ import mandarin.com.mandarin_backend.dto.AnalyzeRequestDto;
 import mandarin.com.mandarin_backend.dto.ParseInfoResponseDto;
 import mandarin.com.mandarin_backend.dto.UserPersonaDto;
 import mandarin.com.mandarin_backend.service.AnalysisService;
+import mandarin.com.mandarin_backend.util.PiiMaskingUtil;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,10 @@ public class PersonaController {
      */
     @PostMapping("/analyze")
     public ResponseEntity<UserPersonaDto> analyze(@RequestBody AnalyzeRequestDto request) {
+
+        // 최소 마스킹만 적용 (주민번호, 카드번호, 비밀번호)
+        // 말투 분석에 영향을 주는 전화번호, 주소 등은 유지
+        String safeText = PiiMaskingUtil.maskSensitiveOnly(request.getTextContent());
         
         System.out.println("[Analyze] JSON 요청 - 대상: " + request.getTargetName() 
             + ", 기간: " + (request.getStartDate() != null ? 
@@ -34,7 +40,7 @@ public class PersonaController {
                 request.getPeriodDays() + "일"));
 
         UserPersonaDto result = analysisService.analyzePersona(
-            request.getTextContent(), 
+            safeText,
             request.getTargetName(),
             request.getPeriodDays(),
             request.getStartDate(),
@@ -77,11 +83,14 @@ public class PersonaController {
 
         try {
             // 파일 내용을 문자열로 변환 (UTF-8 인코딩)
-            String textContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+            String rawTextContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+
+            // 최소 마스킹만 적용 (주민번호, 카드번호, 비밀번호)
+            String safeTextContent = PiiMaskingUtil.maskSensitiveOnly(rawTextContent);
             
             // Python 서버로 분석 요청
             UserPersonaDto result = analysisService.analyzePersona(
-                textContent, targetName, periodDays, startDate, endDate, bufferDays);
+                safeTextContent, targetName, periodDays, startDate, endDate, bufferDays);
             
             return ResponseEntity.ok(result);
             
@@ -107,6 +116,8 @@ public class PersonaController {
         }
 
         try {
+            // 파싱은 마스킹 없이 원본 사용 (참여자 이름 추출 필요)
+            // parse-info는 외부 AI 호출 없이 로컬에서만 처리됨
             String textContent = new String(file.getBytes(), StandardCharsets.UTF_8);
             
             ParseInfoResponseDto result = analysisService.parseInfo(textContent);

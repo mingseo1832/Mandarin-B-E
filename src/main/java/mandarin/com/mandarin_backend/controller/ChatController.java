@@ -37,21 +37,24 @@ public class ChatController {
     }
 
     /**
-     * 대화 로그를 분석하여 연애 관점 보고서 생성
+     * 대화 로그를 시나리오 유형에 따라 분석하여 보고서 생성
      * POST /api/chat/report
      * 
-     * @param request chatLogs(대화 로그), userName(사용자 이름), targetName(상대방 이름)
-     * @return 연애 분석 보고서
+     * @param request chatLogs(대화 로그), userName(사용자 이름), targetName(상대방 이름), scenarioType(시나리오 유형)
+     * @return 시뮬레이션 분석 보고서
      */
     @PostMapping("/report")
     public ResponseEntity<ReportResponseDto> createReport(@RequestBody ReportRequestDto request) {
         
-        System.out.println("[Report] 보고서 요청 - 사용자: " + request.getUserName() + ", 대상: " + request.getTargetName());
+        System.out.println("[Report] 보고서 요청 - 사용자: " + request.getUserName() 
+            + ", 대상: " + request.getTargetName()
+            + ", 시나리오: " + request.getScenarioType());
         
         ReportResponseDto response = reportService.createReport(
             request.getChatLogs(),
             request.getUserName(),
-            request.getTargetName()
+            request.getTargetName(),
+            request.getScenarioType()
         );
         
         return ResponseEntity.ok(response);
