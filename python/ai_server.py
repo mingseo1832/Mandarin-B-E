@@ -49,7 +49,7 @@ class AnalyzeRequest(BaseModel):
     period_days: int = Field(default=14, description="분석할 기간 (일 단위, 기본 14일)")
     start_date: Optional[str] = Field(default=None, description="시작일 (YYYY-MM-DD 형식, 종료일과 함께 사용)")
     end_date: Optional[str] = Field(default=None, description="종료일 (YYYY-MM-DD 형식, 시작일과 함께 사용)")
-    buffer_days: int = Field(default=0, description="시작일 이전 버퍼 일수 (기본 0일)")
+    buffer_days: int = Field(default=7, description="시작일 이전 버퍼 일수 (기본 7일)")
 
 
 class ParseInfoResponse(BaseModel):
@@ -401,7 +401,7 @@ class KakaoTalkParser:
         from_date: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        buffer_days: int = 0
+        buffer_days: int = 7
     ) -> Dict[datetime, List[dict]]:
         """특정 기간의 대화만 필터링
         
@@ -414,7 +414,7 @@ class KakaoTalkParser:
             from_date: 기준일 (기존 방식에서 사용, None이면 최신 날짜)
             start_date: 시작일 (새 방식에서 사용)
             end_date: 종료일 (새 방식에서 사용)
-            buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 0일)
+            buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 7일)
         
         Returns:
             필터링된 날짜별 메시지 딕셔너리
@@ -511,7 +511,7 @@ def preprocess_kakao_text(
     max_chars: int = 50000,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    buffer_days: int = 0
+    buffer_days: int = 7
 ) -> Tuple[str, dict]:
     """
     카카오톡 텍스트 전처리 (기간 필터링, 전체 대화 맥락 유지)
@@ -523,7 +523,7 @@ def preprocess_kakao_text(
         max_chars: 최대 문자 수 제한
         start_date: 시작일 (새 방식에서 사용)
         end_date: 종료일 (새 방식에서 사용)
-        buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 0일)
+        buffer_days: 시작일 이전 버퍼 일수 (새 방식에서 사용, 기본 7일)
     
     Returns:
         (전처리된 텍스트, 통계 정보)
@@ -765,7 +765,7 @@ def analyze_character(req: AnalyzeRequest):
     - **period_days**: 분석할 기간 (기본 14일, start_date/end_date 미지정 시 사용)
     - **start_date**: 시작일 (YYYY-MM-DD 형식, end_date와 함께 사용)
     - **end_date**: 종료일 (YYYY-MM-DD 형식, start_date와 함께 사용)
-    - **buffer_days**: 시작일 이전 버퍼 일수 (기본 0일)
+    - **buffer_days**: 시작일 이전 버퍼 일수 (기본 7일)
     """
     if not req.text_content.strip():
         raise HTTPException(status_code=400, detail="대화 내용이 비어있습니다.")

@@ -68,7 +68,7 @@ public class PersonaController {
             @RequestParam(value = "periodDays", required = false, defaultValue = "14") Integer periodDays,
             @RequestParam(value = "startDate", required = false) String startDate,
             @RequestParam(value = "endDate", required = false) String endDate,
-            @RequestParam(value = "bufferDays", required = false, defaultValue = "0") Integer bufferDays) {
+            @RequestParam(value = "bufferDays", required = false, defaultValue = "7") Integer bufferDays) {
         
         System.out.println("[Analyze] 파일 업로드 - 파일명: " + file.getOriginalFilename() 
             + ", 대상: " + targetName
