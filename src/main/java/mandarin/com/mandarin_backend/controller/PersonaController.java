@@ -4,6 +4,8 @@ import mandarin.com.mandarin_backend.dto.AnalyzeRequestDto;
 import mandarin.com.mandarin_backend.dto.ParseInfoResponseDto;
 import mandarin.com.mandarin_backend.dto.UserPersonaDto;
 import mandarin.com.mandarin_backend.service.AnalysisService;
+import mandarin.com.mandarin_backend.util.PiiMaskingUtil;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,8 @@ public class PersonaController {
      */
     @PostMapping("/analyze")
     public ResponseEntity<UserPersonaDto> analyze(@RequestBody AnalyzeRequestDto request) {
+
+        String safeText = PiiMaskingUtil.mask(request.getTextContent()); // 여기서 마스킹 적용
         
         System.out.println("[Analyze] JSON 요청 - 대상: " + request.getTargetName() 
             + ", 기간: " + (request.getStartDate() != null ? 
@@ -34,7 +38,7 @@ public class PersonaController {
                 request.getPeriodDays() + "일"));
 
         UserPersonaDto result = analysisService.analyzePersona(
-            request.getTextContent(), 
+            safeText, // 마스킹 된 텍스트
             request.getTargetName(),
             request.getPeriodDays(),
             request.getStartDate(),
@@ -64,7 +68,7 @@ public class PersonaController {
             @RequestParam(value = "periodDays", required = false, defaultValue = "14") Integer periodDays,
             @RequestParam(value = "startDate", required = false) String startDate,
             @RequestParam(value = "endDate", required = false) String endDate,
-            @RequestParam(value = "bufferDays", required = false, defaultValue = "7") Integer bufferDays) {
+            @RequestParam(value = "bufferDays", required = false, defaultValue = "0") Integer bufferDays) {
         
         System.out.println("[Analyze] 파일 업로드 - 파일명: " + file.getOriginalFilename() 
             + ", 대상: " + targetName
@@ -77,11 +81,14 @@ public class PersonaController {
 
         try {
             // 파일 내용을 문자열로 변환 (UTF-8 인코딩)
-            String textContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+            String rawTextContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+
+            // 마스킹 적용
+            String safeTextContent = PiiMaskingUtil.mask(rawTextContent);
             
-            // Python 서버로 분석 요청
+            // Python 서버로 분석 요청 (마스킹 데이터 전달)
             UserPersonaDto result = analysisService.analyzePersona(
-                textContent, targetName, periodDays, startDate, endDate, bufferDays);
+                safeTextContent, targetName, periodDays, startDate, endDate, bufferDays);
             
             return ResponseEntity.ok(result);
             
@@ -107,9 +114,11 @@ public class PersonaController {
         }
 
         try {
-            String textContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+            String rawTextContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+
+            String safeTextContent = PiiMaskingUtil.mask(rawTextContent); // 여기서도 마스킹
             
-            ParseInfoResponseDto result = analysisService.parseInfo(textContent);
+            ParseInfoResponseDto result = analysisService.parseInfo(safeTextContent);
             
             return ResponseEntity.ok(result);
             
