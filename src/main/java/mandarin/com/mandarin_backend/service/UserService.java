@@ -29,7 +29,7 @@ public class UserService {
                 .userId(request.getUserId())
                 .username(request.getUsername())
                 .password(request.getPassword())
-                .loveType(0)
+                .loveType(16)
                 .createdAt(LocalDateTime.now())
                 .build();
 
