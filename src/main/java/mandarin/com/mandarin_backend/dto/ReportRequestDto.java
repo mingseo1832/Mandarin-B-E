@@ -22,6 +22,9 @@ public class ReportRequestDto {
     
     @JsonProperty("target_name")
     private String targetName;
+    
+    @JsonProperty("scenario_type")
+    private String scenarioType;  // "FUTURE" 또는 "PAST"
 }
 
 

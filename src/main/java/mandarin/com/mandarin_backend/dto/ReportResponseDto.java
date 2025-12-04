@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReportResponseDto {
-    private RomanceAnalysisReportDto report;
+    private SimulationReportDto report;
 }
 
 
