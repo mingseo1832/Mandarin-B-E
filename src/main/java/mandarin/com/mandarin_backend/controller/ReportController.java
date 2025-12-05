@@ -41,7 +41,7 @@ public class ReportController {
      */
     @GetMapping("/chat/{characterId}")
     public ResponseEntity<ApiResponse<ChatReportResponseDto>> getChatReport(
-            @PathVariable Long characterId) {
+            @PathVariable Integer characterId) {
 
         ApiResponse<ChatReportResponseDto> response = reportService.getChatReport(characterId);
 
