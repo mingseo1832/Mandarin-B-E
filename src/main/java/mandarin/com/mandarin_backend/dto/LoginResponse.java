@@ -8,4 +8,5 @@ import lombok.Getter;
 public class LoginResponse {
     private boolean success;
     private String message;
+    private int loveType;
 }
