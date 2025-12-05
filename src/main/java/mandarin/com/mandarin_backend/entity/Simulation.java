@@ -19,7 +19,7 @@ public class Simulation {
 
     @ManyToOne
     @JoinColumn(name = "character_id", nullable = false)
-    private User_Character character;  // 어떤 캐릭터와의 시뮬레이션인지
+    private UserCharacter character;  // 어떤 캐릭터와의 시뮬레이션인지
 
     @Column(nullable = false)
     private LocalDateTime startTime;   // 시작 시간
