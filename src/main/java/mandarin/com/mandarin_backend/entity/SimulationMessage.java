@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Simulation_Message {
+public class SimulationMessage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,3 +30,4 @@ public class Simulation_Message {
     @Column(nullable = false)
     private LocalDateTime timestamp;   // 메시지 전송 시간
 }
+

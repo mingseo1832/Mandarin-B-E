@@ -1,7 +1,7 @@
 package mandarin.com.mandarin_backend.service;
 
 import mandarin.com.mandarin_backend.dto.*;
-import mandarin.com.mandarin_backend.entity.Chat_Report;
+import mandarin.com.mandarin_backend.entity.ChatReport;
 import mandarin.com.mandarin_backend.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -73,7 +73,7 @@ public class ReportService {
      */
     public ApiResponse<ChatReportResponseDto> getChatReport(Integer characterId) {
         // 해당 캐릭터의 가장 최근 리포트 조회
-        Chat_Report report = reportRepository.findTopByCharacterIdOrderByCreatedTimeDesc(characterId);
+        ChatReport report = reportRepository.findTopByCharacterIdOrderByCreatedTimeDesc(characterId);
 
         if (report == null) {
             return ApiResponse.fail("해당 캐릭터의 리포트가 존재하지 않습니다.");
