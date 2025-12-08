@@ -55,21 +55,4 @@ public class ReportCharacter {
     @Column(name = "solution", nullable = false, columnDefinition = "TEXT")
     private String solution;
 
-    /**
-     * 행동 가이드 이름
-     */
-    @Column(name = "action_name", nullable = false, length = 100)
-    private String actionName;
-
-    /**
-     * 행동 가이드 설명
-     */
-    @Column(name = "act_description", nullable = false, columnDefinition = "TEXT")
-    private String actionDescription;
-
-    /**
-     * 행동 항목 활성화 여부
-     */
-    @Column(name = "check_active", nullable = false)
-    private Boolean checkActive;
 }
