@@ -15,17 +15,19 @@ public class Simulation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long simulationId;  // 시뮬레이션 PK
+    @Column(name = "simulation_id")
+    private Long simulationId;  // PK
 
     @ManyToOne
     @JoinColumn(name = "character_id", nullable = false)
-    private UserCharacter character;  // 어떤 캐릭터와의 시뮬레이션인지
+    private UserCharacter character;  // FK → UserCharacter
 
-    @Column(nullable = false)
-    private LocalDateTime startTime;   // 시작 시간
+    @Column(name = "start_time", nullable = false)
+    private LocalDateTime startTime;
 
-    private LocalDateTime endTime;     // 종료 시간
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
 
-    @Column(length = 100)
-    private String initUserMood;       // 사용자의 초기 감정 상태
+    @Column(name = "init_user_mood", length = 100)
+    private String initUserMood;
 }
