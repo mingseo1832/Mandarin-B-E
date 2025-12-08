@@ -25,6 +25,20 @@ public class ChatReport {
     @JoinColumn(name = "simulation_id", nullable = false)
     private Simulation simulation;
 
+    /**
+     * FK → User
+     */
+    @ManyToOne
+    @JoinColumn(name = "id")
+    private User user;
+
+    /**
+     * FK → UserCharacter
+     */
+    @ManyToOne
+    @JoinColumn(name = "character_id")
+    private UserCharacter character;
+
     @Column(name = "score_avg", nullable = false)
     private Integer scoreAvg;
 

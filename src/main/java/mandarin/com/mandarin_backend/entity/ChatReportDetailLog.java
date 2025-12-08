@@ -5,13 +5,17 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "report_character_detaillog")
+@Table(name = "Chat_Report_DetailLog")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReportCharacterDetailLog {
+public class ChatReportDetailLog {
+
+    @Id
+    @Column(name = "Chat_Report_DetailLog_id")
+    private Long chatReportDetailLogId;
 
     @Column(name = "chat_report_id")
     private Integer chatReportId;
@@ -22,7 +26,6 @@ public class ReportCharacterDetailLog {
     @Column(name = "message", columnDefinition = "TEXT", nullable = false)
     private String message;
 
-    @Id
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 }

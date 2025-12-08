@@ -25,6 +25,13 @@ public class ReportCharacter {
     private ChatReport chatReport;
 
     /**
+     * FK → UserCharacter
+     */
+    @ManyToOne
+    @JoinColumn(name = "character_id")
+    private UserCharacter character;
+
+    /**
      * 분석된 갈등 요소 이름
      */
     @Column(name = "conflict_name", nullable = false, length = 100)

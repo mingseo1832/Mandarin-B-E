@@ -84,6 +84,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- H2 Database (테스트 환경용) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
