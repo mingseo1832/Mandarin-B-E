@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "chat_report_score")
+@Table(name = "Chat_Report_Score")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,15 +15,21 @@ public class ChatReportScore {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "chat_report_score_id")
-    private Integer chatReportScoreId;
+    private Integer chatReportScoreId;  // PK
 
-    @Column(name = "chat_report_id")
-    private Integer chatReportId;
+    /**
+     * FK → ChatReport
+     */
+    @ManyToOne
+    @JoinColumn(name = "chat_report_id", nullable = false)
+    private ChatReport chatReport;
 
-    @Column(name = "label", nullable = false)
-    private String label; // ENUM(F1~P3)
+    /**
+     * 라벨 (F1~F6, P1~P3 등)
+     */
+    @Column(name = "label", nullable = false, length = 10)
+    private String label;
 
     @Column(name = "label_score", nullable = false)
     private Integer labelScore;
 }
-

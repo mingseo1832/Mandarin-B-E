@@ -36,12 +36,12 @@ public class ReportController {
     }
 
     /**
-     * 채팅 종료 후 AI 분석 리포트 조회 API
+     * 채팅 종료 후 AI 분석 리포트 조회 API (캐릭터 ID 기준)
      * GET /report/chat/{characterId}
      */
     @GetMapping("/chat/{characterId}")
     public ResponseEntity<ApiResponse<ChatReportResponseDto>> getChatReport(
-            @PathVariable Integer characterId) {
+            @PathVariable Long characterId) {
 
         ApiResponse<ChatReportResponseDto> response = reportService.getChatReport(characterId);
 
@@ -51,5 +51,21 @@ public class ReportController {
 
         return ResponseEntity.badRequest().body(response);
     }
-}
 
+    /**
+     * 시뮬레이션 ID로 리포트 조회 API
+     * GET /report/simulation/{simulationId}
+     */
+    @GetMapping("/simulation/{simulationId}")
+    public ResponseEntity<ApiResponse<ChatReportResponseDto>> getChatReportBySimulation(
+            @PathVariable Long simulationId) {
+
+        ApiResponse<ChatReportResponseDto> response = reportService.getChatReportBySimulationId(simulationId);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        }
+
+        return ResponseEntity.badRequest().body(response);
+    }
+}
