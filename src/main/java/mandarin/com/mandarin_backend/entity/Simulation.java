@@ -5,7 +5,6 @@ import lombok.*;
 import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
 import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
 import java.time.LocalDateTime;
-import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "Simulation")
@@ -21,52 +20,60 @@ public class Simulation {
     @Column(name = "simulation_id")
     private Long simulationId;  // PK
 
+    /**
+     * FK → User
+     */
+    @ManyToOne
+    @JoinColumn(name = "id", nullable = false)
+    private User user;
+
+    /**
+     * FK → UserCharacter
+     */
     @ManyToOne
     @JoinColumn(name = "character_id", nullable = false)
-    private UserCharacter character;  // 어떤 캐릭터와의 시뮬레이션인지
+    private UserCharacter character;
 
-    @Column(length = 50, nullable = false)
-    private String simulationName;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SimulationPurpose purpose;
+    @Column(name = "simulation_name", length = 50, nullable = false)
+    private String simulationName;   // 시뮬레이션 이름
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SimulationCategory category;
+    @Column(name = "purpose", nullable = false)
+    private SimulationPurpose purpose;   // FUTURE / PAST
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false)
+    private SimulationCategory category; // 10가지 ENUM 카테고리
+    
+    @Column(name = "time", nullable = false)
+    private LocalDateTime time; // 생성 시간 or 실행 시간
 
-    @Column(nullable = false)
-    private LocalDateTime time;
+    @Column(name = "last_update_time", nullable = false)
+    private LocalDateTime lastUpdateTime; // 마지막 수정 시간
 
-    @Column(nullable = false)
-    private LocalDateTime lastUpdateTime;
+    @Column(name = "is_finished", nullable = false)
+    private Boolean isFinished; // 시뮬레이션 종료 여부
 
-    @Column(nullable = false)
-    @ColumnDefault("false") // DB 레벨에서의 Default
-    @Builder.Default        // Java Builder 패턴 사용 시 Default
-    private Boolean isFinished = false;
+    @Column(name = "few_shot_context", columnDefinition = "LONGTEXT", nullable = false)
+    private String fewShotContext; // Few-shot 문맥
 
-    @Column(columnDefinition = "LONGTEXT", nullable = false)
-    private String fewShotContext;
+    @Column(name = "character_persona", columnDefinition = "LONGTEXT", nullable = false)
+    private String characterPersona; // 캐릭터 페르소나
 
-    @Column(columnDefinition = "json", nullable = false)
-    private String characterPersona;
-
-    // --- 자동 시간 설정 로직 ---
-
+    /**
+     * 기본값 세팅
+     */
     @PrePersist
-    public void prePersist() {
+    protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        this.time = now;
-        this.lastUpdateTime = now;
+        if (this.time == null) {
+            this.time = now;
+        }
+        if (this.lastUpdateTime == null) {
+            this.lastUpdateTime = now;
+        }
         if (this.isFinished == null) {
             this.isFinished = false;
         }
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.lastUpdateTime = LocalDateTime.now();
     }
 }
