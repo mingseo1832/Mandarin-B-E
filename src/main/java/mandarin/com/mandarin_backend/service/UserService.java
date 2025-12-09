@@ -107,4 +107,24 @@ public class UserService {
 
         return ApiResponse.success("Love Type이 저장되었습니다.", null);
     }
+
+    // 6. 패스워드 확인 기능 (회원정보 수정 전 본인 확인용)
+    public ApiResponse<Boolean> checkPassword(Long userId, String password) {
+
+        User user = userRepository.findById(userId)
+                .orElse(null);
+
+        if (user == null) {
+            return ApiResponse.fail("존재하지 않는 사용자입니다.");
+        }
+
+        // 패스워드 일치 여부 확인
+        boolean isPasswordMatch = user.getPassword().equals(password);
+
+        if (isPasswordMatch) {
+            return ApiResponse.success("패스워드가 일치합니다.", true);
+        } else {
+            return ApiResponse.fail("패스워드가 일치하지 않습니다.");
+        }
+    }
 }
