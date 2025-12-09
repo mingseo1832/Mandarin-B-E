@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import mandarin.com.mandarin_backend.dto.ApiResponse;
 import mandarin.com.mandarin_backend.dto.LoginRequest;
 import mandarin.com.mandarin_backend.dto.SignUpRequest;
+import mandarin.com.mandarin_backend.dto.UserResponseDto;
+import mandarin.com.mandarin_backend.dto.UserUpdateRequestDto;
 import mandarin.com.mandarin_backend.entity.User;
 import mandarin.com.mandarin_backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -106,5 +108,102 @@ public class UserService {
         userRepository.save(user);
 
         return ApiResponse.success("Love Type이 저장되었습니다.", null);
+    }
+
+    // 6. 패스워드 확인 기능 (회원정보 수정 전 본인 확인용)
+    public ApiResponse<Boolean> checkPassword(Long userId, String password) {
+
+        User user = userRepository.findById(userId)
+                .orElse(null);
+
+        if (user == null) {
+            return ApiResponse.fail("존재하지 않는 사용자입니다.");
+        }
+
+        // 패스워드 일치 여부 확인
+        boolean isPasswordMatch = user.getPassword().equals(password);
+
+        if (isPasswordMatch) {
+            return ApiResponse.success("패스워드가 일치합니다.", true);
+        } else {
+            return ApiResponse.fail("패스워드가 일치하지 않습니다.");
+        }
+    }
+
+    // 7. 회원 정보 조회 기능 (User 테이블의 기본키로 조회)
+    public ApiResponse<UserResponseDto> getUserById(Long id) {
+
+        User user = userRepository.findById(id)
+                .orElse(null);
+
+        if (user == null) {
+            return ApiResponse.fail("존재하지 않는 사용자입니다.");
+        }
+
+        // 비밀번호 제외하고 UserResponseDto로 변환
+        UserResponseDto responseDto = UserResponseDto.builder()
+                .id(user.getId())
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .loveType(user.getLoveType())
+                .createdAt(user.getCreatedAt())
+                .build();
+
+        return ApiResponse.success("회원 정보 조회 성공", responseDto);
+    }
+
+    // 8. 회원 정보 수정 기능 (본인 정보만 수정 가능)
+    public ApiResponse<UserResponseDto> updateUser(Long id, UserUpdateRequestDto request, Long loginUserId) {
+
+        // 본인만 수정 가능하도록 확인
+        if (!id.equals(loginUserId)) {
+            return ApiResponse.fail("본인의 정보만 수정할 수 있습니다.");
+        }
+
+        User user = userRepository.findById(id)
+                .orElse(null);
+
+        if (user == null) {
+            return ApiResponse.fail("존재하지 않는 사용자입니다.");
+        }
+
+        // 수정 가능한 필드 업데이트
+        if (request.getUsername() != null && !request.getUsername().isEmpty()) {
+            // 이름 유효성 검사 (한글 1~5자)
+            if (!request.getUsername().matches("^[가-힣]{1,5}$")) {
+                return ApiResponse.fail("이름은 공백 없이 한글 1~5자여야 합니다.");
+            }
+            user.setUsername(request.getUsername());
+        }
+
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            // 비밀번호 유효성 검사
+            if (!request.getPassword().matches("^[A-Za-z0-9!@#$%^&*]{1,20}$")) {
+                return ApiResponse.fail("비밀번호는 공백 없이 1~20자여야 합니다.");
+            }
+            user.setPassword(request.getPassword());
+        }
+
+        if (request.getLoveType() != null) {
+            // loveType 유효성 검사 (0~15)
+            if (request.getLoveType() < 0 || request.getLoveType() > 15) {
+                return ApiResponse.fail("유효하지 않은 Love Type입니다. (0~15)");
+            }
+            user.setLoveType(request.getLoveType());
+        }
+
+        // DB 저장
+        userRepository.save(user);
+
+        // 수정된 정보를 UserResponseDto로 변환
+        UserResponseDto responseDto = UserResponseDto.builder()
+                .id(user.getId())
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .loveType(user.getLoveType())
+                .createdAt(user.getCreatedAt())
+                .build();
+
+        return ApiResponse.success("회원 정보가 수정되었습니다.", responseDto);
     }
 }
