@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import mandarin.com.mandarin_backend.entity.User;
 import mandarin.com.mandarin_backend.entity.UserCharacter;
 import mandarin.com.mandarin_backend.exception.UserNotFoundException;
 import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
@@ -25,7 +24,7 @@ public class UserCharacterService {
     public List<UserCharacterResponseDto> getCharactersByUserId(Long userId) {
 
         // 1) 유저 존재 여부 체크
-        User user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("회원 정보가 없습니다."));
 
         // 2) 유저에 속한 캐릭터 조회
@@ -33,11 +32,7 @@ public class UserCharacterService {
 
         // 3) 엔티티 → DTO 변환
         return characters.stream()
-                .map(c -> UserCharacterResponseDto.builder()
-                        .characterId(c.getCharacterId())
-                        .characterName(c.getCharacterName())
-                        .kakaoName(c.getKakaoName())
-                        .build())
+                .map(UserCharacterResponseDto::fromEntity)
                 .collect(Collectors.toList());
     }
 }
