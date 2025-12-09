@@ -18,7 +18,8 @@ public class Simulation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long simulationId;  // 시뮬레이션 PK
+    @Column(name = "simulation_id")
+    private Long simulationId;  // PK
 
     @ManyToOne
     @JoinColumn(name = "character_id", nullable = false)
