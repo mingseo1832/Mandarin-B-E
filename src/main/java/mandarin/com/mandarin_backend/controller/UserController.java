@@ -7,6 +7,8 @@ import mandarin.com.mandarin_backend.dto.CheckPasswordRequest;
 import mandarin.com.mandarin_backend.dto.LoginRequest;
 import mandarin.com.mandarin_backend.dto.LoveTypeRequestDto;
 import mandarin.com.mandarin_backend.dto.SignUpRequest;
+import mandarin.com.mandarin_backend.dto.UserResponseDto;
+import mandarin.com.mandarin_backend.dto.UserUpdateRequestDto;
 import mandarin.com.mandarin_backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -81,7 +83,45 @@ public class UserController {
         return ResponseEntity.badRequest().body(response); // 실패 시 400
     }
 
-    // 5. 유저 탈퇴 API
+    // 5. 회원 정보 조회 API
+    // GET /user/{id} (명세서: /users/{id})
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<UserResponseDto>> getUserById(@PathVariable Long id) {
+
+        ApiResponse<UserResponseDto> response = userService.getUserById(id);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response); // 200 OK
+        }
+
+        return ResponseEntity.badRequest().body(response); // 실패 시 400
+    }
+
+    // 6. 회원 정보 수정 API (본인 정보만 수정 가능)
+    // POST /user/update/{id} (명세서: /users/update/{id})
+    @PostMapping("/update/{id}")
+    public ResponseEntity<ApiResponse<UserResponseDto>> updateUser(@PathVariable Long id,
+                                                                   @RequestBody UserUpdateRequestDto request,
+                                                                   HttpSession session) {
+
+        // 세션에서 로그인된 사용자 ID 가져오기
+        Long loginUserId = (Long) session.getAttribute("LOGIN_USER_ID");
+
+        if (loginUserId == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("로그인이 필요합니다."));
+        }
+
+        ApiResponse<UserResponseDto> response = userService.updateUser(id, request, loginUserId);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response); // 200 OK
+        }
+
+        return ResponseEntity.badRequest().body(response); // 실패 시 400
+    }
+
+    // 7. 유저 탈퇴 API
     // DELETE /user/{userId}
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable String userId) {
@@ -95,7 +135,7 @@ public class UserController {
         return ResponseEntity.badRequest().body(response); // 실패 시 400
     }
 
-    // 6. 러브타입 업데이트 API
+    // 8. 러브타입 업데이트 API
     // PUT /user/lovetype
     @PutMapping("/lovetype")
     public ResponseEntity<ApiResponse<Void>> updateLoveType(@RequestBody LoveTypeRequestDto request) {
