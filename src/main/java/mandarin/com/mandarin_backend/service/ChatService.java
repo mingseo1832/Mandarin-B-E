@@ -1,10 +1,19 @@
 package mandarin.com.mandarin_backend.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import mandarin.com.mandarin_backend.dto.*;
+import mandarin.com.mandarin_backend.entity.Simulation;
+import mandarin.com.mandarin_backend.entity.SimulationMessage;
+import mandarin.com.mandarin_backend.entity.UserCharacter;
+import mandarin.com.mandarin_backend.repository.SimulationMessageRepository;
+import mandarin.com.mandarin_backend.repository.SimulationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,23 +24,68 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final WebClient webClient;
+    private final SimulationRepository simulationRepository;
+    private final SimulationMessageRepository simulationMessageRepository;
+    private final ObjectMapper objectMapper;
 
     /**
-     * 페르소나를 적용한 AI와 대화
+     * 시뮬레이션 ID를 기반으로 AI와 대화
+     * Simulation과 UserCharacter의 정보를 조회하여 AI에게 컨텍스트를 전달합니다.
+     * 사용자 메시지와 AI 응답을 SimulationMessage에 저장합니다.
      * 
-     * @param persona 적용할 페르소나 정보
+     * @param simulationId 시뮬레이션 ID
      * @param userMessage 사용자 메시지
      * @param history 이전 대화 내역
      * @return AI 응답
      */
-    public ChatResponseDto chat(UserPersonaDto persona, String userMessage, List<ChatLogDto> history) {
-        // Python 서버로 보낼 데이터 준비
+    @Transactional
+    public ChatResponseDto chat(Long simulationId, String userMessage, List<ChatLogDto> history) {
+        // 1. 시뮬레이션 조회
+        Simulation simulation = simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new IllegalArgumentException("시뮬레이션을 찾을 수 없습니다: " + simulationId));
+        
+        // 2. UserCharacter 조회 (Simulation에서 가져옴)
+        UserCharacter character = simulation.getCharacter();
+        
+        // 3. 페르소나 JSON 파싱
+        UserPersonaDto persona = parsePersonaFromJson(simulation.getCharacterPersona());
+        
+        // 4. 사용자 메시지 저장 (sender: false = USER)
+        LocalDateTime userMessageTime = LocalDateTime.now();
+        SimulationMessage userMsg = SimulationMessage.builder()
+                .simulation(simulation)
+                .sender(false)  // false = USER
+                .content(userMessage)
+                .timestamp(userMessageTime)
+                .build();
+        simulationMessageRepository.save(userMsg);
+        
+        System.out.println("[Chat] 사용자 메시지 저장 - 시뮬레이션ID: " + simulationId + ", 시간: " + userMessageTime);
+        
+        // 5. Python 서버로 보낼 데이터 준비
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("persona", convertPersonaToMap(persona));
         requestBody.put("user_message", userMessage);
         requestBody.put("history", convertHistoryToList(history));
+        
+        // 6. 시뮬레이션 컨텍스트 추가
+        Map<String, Object> simulationContext = new HashMap<>();
+        simulationContext.put("character_age", character.getCharacterAge());
+        simulationContext.put("relation_type", character.getRelationType());
+        simulationContext.put("love_type", character.getLoveType());
+        simulationContext.put("history_sum", character.getHistorySum());
+        simulationContext.put("purpose", simulation.getPurpose().name());
+        simulationContext.put("category", simulation.getCategory().name());
+        
+        requestBody.put("simulation_context", simulationContext);
 
-        // Python 서버 호출 (POST /chat)
+        System.out.println("[Chat] 시뮬레이션 컨텍스트 - 나이: " + character.getCharacterAge()
+            + ", 관계: " + character.getRelationType()
+            + ", 러브타입: " + character.getLoveType()
+            + ", 목적: " + simulation.getPurpose()
+            + ", 카테고리: " + simulation.getCategory());
+
+        // 7. Python 서버 호출 (POST /chat)
         ChatResponseDto response = webClient.post()
                 .uri("/chat")
                 .bodyValue(requestBody)
@@ -39,7 +93,32 @@ public class ChatService {
                 .bodyToMono(ChatResponseDto.class)
                 .block();
 
+        // 8. AI 응답 저장 (sender: true = AI)
+        if (response != null && response.getReply() != null) {
+            LocalDateTime aiResponseTime = LocalDateTime.now();
+            SimulationMessage aiMsg = SimulationMessage.builder()
+                    .simulation(simulation)
+                    .sender(true)  // true = AI
+                    .content(response.getReply())
+                    .timestamp(aiResponseTime)
+                    .build();
+            simulationMessageRepository.save(aiMsg);
+            
+            System.out.println("[Chat] AI 응답 저장 - 시뮬레이션ID: " + simulationId + ", 시간: " + aiResponseTime);
+        }
+
         return response;
+    }
+
+    /**
+     * JSON 문자열에서 UserPersonaDto 파싱
+     */
+    private UserPersonaDto parsePersonaFromJson(String personaJson) {
+        try {
+            return objectMapper.readValue(personaJson, UserPersonaDto.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("페르소나 JSON 파싱 실패: " + e.getMessage());
+        }
     }
 
     /**
@@ -69,6 +148,38 @@ public class ChatService {
             }
             
             personaMap.put("speech_style", speechStyleMap);
+        }
+        
+        // 긍정/부정 반응 패턴 추가
+        if (persona.getReactionPatterns() != null) {
+            Map<String, Object> reactionMap = new HashMap<>();
+            ReactionAnalysisDto reactions = persona.getReactionPatterns();
+            
+            if (reactions.getPositiveTriggers() != null) {
+                reactionMap.put("positive_triggers", reactions.getPositiveTriggers().stream()
+                        .map(trigger -> {
+                            Map<String, String> triggerMap = new HashMap<>();
+                            triggerMap.put("trigger", trigger.getTrigger());
+                            triggerMap.put("reaction", trigger.getReaction());
+                            triggerMap.put("example", trigger.getExample());
+                            return triggerMap;
+                        })
+                        .collect(Collectors.toList()));
+            }
+            
+            if (reactions.getNegativeTriggers() != null) {
+                reactionMap.put("negative_triggers", reactions.getNegativeTriggers().stream()
+                        .map(trigger -> {
+                            Map<String, String> triggerMap = new HashMap<>();
+                            triggerMap.put("trigger", trigger.getTrigger());
+                            triggerMap.put("reaction", trigger.getReaction());
+                            triggerMap.put("example", trigger.getExample());
+                            return triggerMap;
+                        })
+                        .collect(Collectors.toList()));
+            }
+            
+            personaMap.put("reaction_patterns", reactionMap);
         }
         
         return personaMap;

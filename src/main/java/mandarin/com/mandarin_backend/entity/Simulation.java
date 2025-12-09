@@ -2,7 +2,10 @@ package mandarin.com.mandarin_backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
+import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "Simulation")

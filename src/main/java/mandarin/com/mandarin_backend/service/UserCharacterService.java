@@ -1,19 +1,19 @@
 package mandarin.com.mandarin_backend.service;
 
 import lombok.RequiredArgsConstructor;
+import mandarin.com.mandarin_backend.dto.HistorySumResponseDto;
+import mandarin.com.mandarin_backend.entity.UserCharacter;
+import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
-import mandarin.com.mandarin_backend.entity.User;
-import mandarin.com.mandarin_backend.entity.UserCharacter;
-import mandarin.com.mandarin_backend.exception.UserNotFoundException;
-import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
-import mandarin.com.mandarin_backend.repository.UserRepository;
-import mandarin.com.mandarin_backend.dto.UserCharacterResponseDto;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+/**
+ * UserCharacter 관련 서비스
+ */
 @Service
 @RequiredArgsConstructor
 public class UserCharacterService {
