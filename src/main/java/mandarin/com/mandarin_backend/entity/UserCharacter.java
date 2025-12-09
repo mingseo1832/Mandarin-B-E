@@ -46,17 +46,17 @@ public class UserCharacter {
     @Builder.Default
     private Integer loveType = 16;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String prompt;          // AI 캐릭터 생성 프롬프트
+    @Column(name = "kakao_name", nullable = false, length = 50)
+    private String kakaoName;  // 카카오톡에서의 이름 (targetName)
 
     @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String fullDialogue;    // 전체 대화 내용 저장
 
-    @Column(nullable = false, columnDefinition = "LONGTEXT")
-    private String fewShotContext;  // few-shot 문맥 저장
-
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;  // 생성 시간
+
+    @Column(columnDefinition = "TEXT")
+    private String historySum;  // AI가 요약한 히스토리
 
     @PrePersist
     protected void onCreate() {

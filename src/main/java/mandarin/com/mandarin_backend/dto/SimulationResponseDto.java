@@ -8,6 +8,9 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
+import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,7 +19,11 @@ import java.time.LocalDateTime;
 public class SimulationResponseDto {
     private Long simulationId;
     private Long characterId;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private String simulationName;
+    private SimulationPurpose purpose;
+    private SimulationCategory category;
+    private LocalDateTime time;
+    private LocalDateTime lastUpdateTime;
+    private Boolean isFinished;
 }
 
