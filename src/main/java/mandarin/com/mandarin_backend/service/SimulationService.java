@@ -30,8 +30,12 @@ public class SimulationService {
                 .map(simulation -> SimulationResponseDto.builder()
                         .simulationId(simulation.getSimulationId())
                         .characterId(simulation.getCharacter().getCharacterId())
-                        .startTime(simulation.getStartTime())
-                        .endTime(simulation.getEndTime())
+                        .simulationName(simulation.getSimulationName())
+                        .purpose(simulation.getPurpose())
+                        .category(simulation.getCategory())
+                        .time(simulation.getTime())
+                        .lastUpdateTime(simulation.getLastUpdateTime())
+                        .isFinished(simulation.getIsFinished())
                         .build())
                 .collect(Collectors.toList());
 

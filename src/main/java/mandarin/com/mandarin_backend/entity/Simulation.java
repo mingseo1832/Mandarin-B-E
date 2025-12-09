@@ -2,6 +2,8 @@ package mandarin.com.mandarin_backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
+import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
 import java.time.LocalDateTime;
 
 @Entity
@@ -38,28 +40,10 @@ public class Simulation {
     @Enumerated(EnumType.STRING)
     @Column(name = "purpose", nullable = false)
     private SimulationPurpose purpose;   // FUTURE / PAST
-
-    public enum SimulationPurpose {
-        FUTURE,
-        PAST
-    }
     
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false)
     private SimulationCategory category; // 10가지 ENUM 카테고리
-
-    public enum SimulationCategory {
-        EMOTIONAL_MISTAKE,
-        MISCOMMUNICATION,
-        CONTACT_ISSUE,
-        BREAKUP_PROCESS,
-        REALITY_PROBLEM,
-        RELATION_TENSION,
-        PERSONAL_BOUNDARY,
-        FAMILY_FRIEND_ISSUE,
-        BREAKUP_FUTURE,
-        EVENT_PREPARATION
-    }
     
     @Column(name = "time", nullable = false)
     private LocalDateTime time; // 생성 시간 or 실행 시간
@@ -75,4 +59,21 @@ public class Simulation {
 
     @Column(name = "character_persona", columnDefinition = "LONGTEXT", nullable = false)
     private String characterPersona; // 캐릭터 페르소나
+
+    /**
+     * 기본값 세팅
+     */
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (this.time == null) {
+            this.time = now;
+        }
+        if (this.lastUpdateTime == null) {
+            this.lastUpdateTime = now;
+        }
+        if (this.isFinished == null) {
+            this.isFinished = false;
+        }
+    }
 }

@@ -9,4 +9,10 @@ public class UserPersonaDto {
 
     @JsonProperty("speech_style")
     private SpeechStyleDto speechStyle;
+    
+    /**
+     * 상대방 말에 대한 긍정/부정 반응 패턴 분석
+     */
+    @JsonProperty("reaction_patterns")
+    private ReactionAnalysisDto reactionPatterns;
 }
