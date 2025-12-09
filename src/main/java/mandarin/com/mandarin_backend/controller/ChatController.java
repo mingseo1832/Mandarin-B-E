@@ -49,20 +49,39 @@ public class ChatController {
     }
 
     /**
-     * 대화 로그를 시나리오 유형에 따라 분석하여 보고서 생성
+     * 대화 로그를 시나리오 유형에 따라 분석하여 보고서 생성 및 DB 저장
      * POST /api/chat/report
      * 
-     * @param request chatLogs(대화 로그), userName(사용자 이름), targetName(상대방 이름), scenarioType(시나리오 유형)
+     * @param request simulationId(시뮬레이션 ID), chatLogs(대화 로그), userName(사용자 이름), targetName(상대방 이름), scenarioType(시나리오 유형)
      * @return 시뮬레이션 분석 보고서
      */
     @PostMapping("/report")
     public ResponseEntity<ReportResponseDto> createReport(@RequestBody ReportRequestDto request) {
         
-        System.out.println("[Report] 보고서 요청 - 사용자: " + request.getUserName() 
+        // 필수 파라미터 검증
+        if (request.getSimulationId() == null) {
+            throw new IllegalArgumentException("simulationId는 필수입니다.");
+        }
+        if (request.getChatLogs() == null || request.getChatLogs().isEmpty()) {
+            throw new IllegalArgumentException("chatLogs는 필수입니다.");
+        }
+        if (request.getUserName() == null || request.getUserName().trim().isEmpty()) {
+            throw new IllegalArgumentException("userName은 필수입니다.");
+        }
+        if (request.getTargetName() == null || request.getTargetName().trim().isEmpty()) {
+            throw new IllegalArgumentException("targetName은 필수입니다.");
+        }
+        if (request.getScenarioType() == null || request.getScenarioType().trim().isEmpty()) {
+            throw new IllegalArgumentException("scenarioType은 필수입니다.");
+        }
+        
+        System.out.println("[Report] 보고서 요청 - 시뮬레이션ID: " + request.getSimulationId()
+            + ", 사용자: " + request.getUserName() 
             + ", 대상: " + request.getTargetName()
             + ", 시나리오: " + request.getScenarioType());
         
-        ReportResponseDto response = reportService.createReport(
+        ReportResponseDto response = reportService.createReportAndSave(
+            request.getSimulationId(),
             request.getChatLogs(),
             request.getUserName(),
             request.getTargetName(),

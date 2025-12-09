@@ -14,6 +14,11 @@ import java.util.List;
 @AllArgsConstructor
 public class ReportRequestDto {
     
+    /**
+     * 시뮬레이션 ID - 리포트를 저장할 시뮬레이션
+     */
+    private Long simulationId;
+    
     @JsonProperty("chat_logs")
     private List<ChatLogDto> chatLogs;
     
