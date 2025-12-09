@@ -15,7 +15,11 @@ import java.util.List;
 @AllArgsConstructor
 public class ChatRequestDto {
     
-    private UserPersonaDto persona;
+    /**
+     * 시뮬레이션 ID - 이 ID로 Simulation과 UserCharacter 정보를 조회하여
+     * AI에게 컨텍스트 정보를 전달합니다.
+     */
+    private Long simulationId;
     
     @JsonProperty("user_message")
     private String userMessage;

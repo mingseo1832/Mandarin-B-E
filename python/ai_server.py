@@ -30,9 +30,31 @@ class SpeechStyleAnalysis(BaseModel):
     sample_sentences: List[str] = Field(description="이 사람의 말투가 가장 잘 드러나는 실제 대화 문장 3개 추출")
 
 
+class ReactionTrigger(BaseModel):
+    """상대방의 특정 말에 대한 반응 트리거"""
+    trigger: str = Field(description="상대방(사용자)이 한 말/행동/주제 (예: '칭찬', '약속 변경', '애정 표현')")
+    reaction: str = Field(description="그에 대한 이 사람의 반응 패턴 (예: '기분 좋아하며 이모티콘 많이 사용', '짜증내며 단답으로 변함')")
+    example: str = Field(description="실제 대화에서 해당 반응이 나타난 예시 문장")
+
+
+class ReactionAnalysis(BaseModel):
+    """긍정/부정 반응 분석"""
+    positive_triggers: List[ReactionTrigger] = Field(
+        description="상대방(사용자)의 어떤 말/행동에 긍정적으로 반응했는지 TOP 3",
+        min_length=1,
+        max_length=3
+    )
+    negative_triggers: List[ReactionTrigger] = Field(
+        description="상대방(사용자)의 어떤 말/행동에 부정적으로 반응했는지 TOP 3",
+        min_length=1,
+        max_length=3
+    )
+
+
 class UserPersona(BaseModel):
     name: str = Field(description="사용자 이름")
     speech_style: SpeechStyleAnalysis
+    reaction_patterns: ReactionAnalysis = Field(description="상대방 말에 대한 긍정/부정 반응 패턴 분석")
 
 
 # ============================================================
@@ -61,10 +83,21 @@ class ParseInfoResponse(BaseModel):
     date_range: dict = Field(description="대화 기간")
 
 
+class SimulationContext(BaseModel):
+    """시뮬레이션 컨텍스트 정보"""
+    character_age: int = Field(description="캐릭터 나이")
+    relation_type: int = Field(description="관계 타입 (0: 썸, 1: 연애, 2: 이별)")
+    love_type: int = Field(default=16, description="연애 타입 (0~15, 16=미설정)")
+    history_sum: Optional[str] = Field(default=None, description="사용자와 상대간의 이야기 요약")
+    purpose: Literal["FUTURE", "PAST"] = Field(description="시뮬레이션 목적")
+    category: str = Field(description="구체적인 상황 카테고리")
+
+
 class ChatRequest(BaseModel):
     persona: UserPersona = Field(description="대화에 사용할 페르소나 정보")
     user_message: str = Field(description="사용자 메시지")
     history: List[dict] = Field(default=[], description="이전 대화 내역")
+    simulation_context: Optional[SimulationContext] = Field(default=None, description="시뮬레이션 컨텍스트 정보")
 
 
 class ChatResponse(BaseModel):
@@ -76,6 +109,15 @@ class ReportRequest(BaseModel):
     user_name: str = Field(description="사용자(본인) 이름")
     target_name: str = Field(description="페르소나 대상(상대방) 이름")
     scenario_type: Literal["FUTURE", "PAST"] = Field(description="시나리오 유형 (FUTURE: 미래 시뮬레이션, PAST: 과거 후회 시뮬레이션)")
+
+
+class HistorySumRequest(BaseModel):
+    history: str = Field(description="요약할 히스토리 내용")
+    character_name: str = Field(description="캐릭터 이름 (요약 시 참고용)")
+
+
+class HistorySumResponse(BaseModel):
+    summary: str = Field(description="요약된 히스토리")
 
 
 class KeyConversation(BaseModel):
@@ -578,6 +620,17 @@ def build_system_prompt(text_content: str) -> str:
    - '이모티콘' 텍스트가 자주 보이면 'Graphic'으로 판단하세요.
 2. 'tone'은 추상적이지 않고 구체적인 형용사로 기술하세요.
 3. 사용자가 특정 인물을 지목하면, 그 사람의 발화만 필터링하여 분석하세요.
+
+[반응 패턴 분석 지침 - 매우 중요!]
+4. 'reaction_patterns'는 분석 대상 인물이 상대방(대화 상대)의 말/행동에 어떻게 반응했는지를 분석합니다.
+5. 'positive_triggers': 상대방이 어떤 말을 했을 때 분석 대상이 기분 좋아했는지 TOP 3를 추출하세요.
+   - 예: 칭찬, 애정 표현, 관심 표현, 공감, 선물/이벤트 제안, 약속 제안 등
+   - 실제 대화에서 긍정적 반응(이모티콘 많아짐, 말이 길어짐, 애교, 고마움 표현 등)이 나타난 맥락을 찾으세요.
+6. 'negative_triggers': 상대방이 어떤 말을 했을 때 분석 대상이 기분 나빠했는지 TOP 3를 추출하세요.
+   - 예: 약속 변경/취소, 늦은 답장에 대한 언급, 다른 이성 언급, 비난/지적, 무관심한 반응 등
+   - 실제 대화에서 부정적 반응(단답, 이모티콘 감소, 짜증, 서운함 표현, 읽씹 등)이 나타난 맥락을 찾으세요.
+7. 각 트리거에는 반드시 실제 대화에서 발췌한 예시 문장(example)을 포함하세요.
+8. 트리거가 3개 미만이면 대화에서 발견된 것만 작성하되, 최소 1개는 반드시 포함하세요.
 """
 
 
@@ -596,12 +649,79 @@ def extract_persona(target_name: str, system_prompt: str) -> Optional[UserPerson
         return None
 
 
-def generate_reply(persona: UserPersona, user_message: str, history: List[dict]) -> str:
-    """페르소나 정보를 기반으로 대화 응답을 생성합니다."""
+def get_relation_type_name(relation_type: int) -> str:
+    """관계 타입 코드를 한글 이름으로 변환"""
+    relation_map = {
+        0: "썸 (서로 관심이 있는 단계)",
+        1: "연애 (정식으로 사귀는 사이)",
+        2: "이별 (헤어진 상태 또는 이별 위기)"
+    }
+    return relation_map.get(relation_type, "알 수 없음")
+
+
+def get_love_type_name(love_type: int) -> str:
+    """연애 타입 코드를 한글 이름으로 변환"""
+    love_type_map = {
+        0: "ESTJ - 현실적인 관리자형",
+        1: "ESTP - 활동적인 모험가형",
+        2: "ESFJ - 헌신적인 돌봄이형",
+        3: "ESFP - 자유로운 연예인형",
+        4: "ENTJ - 야망있는 통솔자형",
+        5: "ENTP - 논쟁을 즐기는 변론가형",
+        6: "ENFJ - 따뜻한 선도자형",
+        7: "ENFP - 열정적인 활동가형",
+        8: "ISTJ - 신뢰할 수 있는 현실주의자형",
+        9: "ISTP - 논리적인 장인형",
+        10: "ISFJ - 헌신적인 수호자형",
+        11: "ISFP - 감성적인 예술가형",
+        12: "INTJ - 전략적인 사색가형",
+        13: "INTP - 논리적인 사색가형",
+        14: "INFJ - 통찰력있는 이상주의자형",
+        15: "INFP - 낭만적인 중재자형",
+        16: "미설정"
+    }
+    return love_type_map.get(love_type, "미설정")
+
+
+def get_category_description(category: str, purpose: str) -> str:
+    """카테고리 코드를 상세 설명으로 변환"""
+    category_map = {
+        # 과거 시나리오
+        "EMOTIONAL_MISTAKE": "감정적인 다툼이나 말실수로 인한 갈등 상황",
+        "MISCOMMUNICATION": "서운함이나 불만을 제대로 표현하지 못한 상황",
+        "CONTACT_ISSUE": "연락 빈도나 시간 배분으로 인한 문제 상황",
+        "BREAKUP_PROCESS": "고백이나 이별 후속 처리가 필요한 상황",
+        "REALITY_PROBLEM": "현실적인 문제(거리, 시간, 환경)에 대처해야 하는 상황",
+        # 미래 시나리오
+        "RELATION_TENSION": "고백이나 관계 진전을 시도하는 상황",
+        "PERSONAL_BOUNDARY": "민감한 요구나 부탁을 해야 하는 상황",
+        "FAMILY_FRIEND_ISSUE": "가족이나 친구 관련 문제를 다루는 상황",
+        "BREAKUP_FUTURE": "이별 통보나 이별 상황에 대처하는 상황",
+        "EVENT_PREPARATION": "기념일이나 이벤트를 계획하는 상황"
+    }
+    return category_map.get(category, category)
+
+
+def generate_reply(
+    persona: UserPersona, 
+    user_message: str, 
+    history: List[dict],
+    simulation_context: Optional[SimulationContext] = None
+) -> str:
+    """페르소나와 시뮬레이션 컨텍스트 정보를 기반으로 대화 응답을 생성합니다.
     
-    # 페르소나 정보를 시스템 프롬프트로 변환
-    persona_prompt = f"""
-당신은 '{persona.name}'이라는 사람의 말투를 완벽하게 모방해야 합니다.
+    Args:
+        persona: 페르소나 정보 (말투, 특성 등)
+        user_message: 사용자 메시지
+        history: 이전 대화 내역
+        simulation_context: 시뮬레이션 컨텍스트 (나이, 관계, 히스토리 등)
+    
+    Returns:
+        생성된 AI 응답
+    """
+    
+    # 기본 페르소나 정보를 시스템 프롬프트로 변환
+    persona_prompt = f"""당신은 '{persona.name}'이라는 사람의 말투를 완벽하게 모방해야 합니다.
 
 [말투 특성]
 - 존대 여부: {persona.speech_style.politeness_level}
@@ -614,9 +734,59 @@ def generate_reply(persona: UserPersona, user_message: str, history: List[dict])
 
 [예시 문장]
 {chr(10).join(f'- {s}' for s in persona.speech_style.sample_sentences)}
+"""
 
-위 특성을 반영하여 '{persona.name}'처럼 자연스럽게 대화하세요.
-절대 캐릭터에서 벗어나지 마세요.
+    # 긍정/부정 반응 패턴 추가
+    if persona.reaction_patterns:
+        reaction_prompt = "\n[반응 패턴 - 사용자의 말에 따른 감정 반응]\n"
+        
+        # 긍정적 반응 트리거
+        if persona.reaction_patterns.positive_triggers:
+            reaction_prompt += "\n★ 기분 좋아지는 상황 (긍정적 반응):\n"
+            for i, trigger in enumerate(persona.reaction_patterns.positive_triggers, 1):
+                reaction_prompt += f"  {i}. '{trigger.trigger}' → {trigger.reaction}\n"
+                reaction_prompt += f"     예시: \"{trigger.example}\"\n"
+        
+        # 부정적 반응 트리거
+        if persona.reaction_patterns.negative_triggers:
+            reaction_prompt += "\n★ 기분 나빠지는 상황 (부정적 반응):\n"
+            for i, trigger in enumerate(persona.reaction_patterns.negative_triggers, 1):
+                reaction_prompt += f"  {i}. '{trigger.trigger}' → {trigger.reaction}\n"
+                reaction_prompt += f"     예시: \"{trigger.example}\"\n"
+        
+        reaction_prompt += "\n※ 사용자의 메시지가 위 상황과 비슷하면 해당 반응 패턴을 참고하여 자연스럽게 반응하세요.\n"
+        persona_prompt += reaction_prompt
+
+    # 시뮬레이션 컨텍스트가 있으면 추가 정보 포함
+    if simulation_context:
+        context_prompt = f"""
+[캐릭터 배경 정보]
+- 나이: {simulation_context.character_age}세 (이 나이대에 맞는 자연스러운 대화를 해주세요)
+- 현재 관계: {get_relation_type_name(simulation_context.relation_type)}
+- 연애 성향: {get_love_type_name(simulation_context.love_type)}
+
+[시뮬레이션 상황]
+- 목적: {"미래의 불확실한 상황을 미리 연습해보는 시뮬레이션" if simulation_context.purpose == "FUTURE" else "과거에 후회되는 상황을 다시 시도해보는 시뮬레이션"}
+- 구체적 상황: {get_category_description(simulation_context.category, simulation_context.purpose)}
+"""
+        
+        # 히스토리 요약이 있으면 추가
+        if simulation_context.history_sum:
+            context_prompt += f"""
+[두 사람의 관계 히스토리]
+{simulation_context.history_sum}
+"""
+        
+        persona_prompt += context_prompt
+
+    # 응답 생성 지침 추가
+    persona_prompt += f"""
+[응답 지침]
+1. 위의 말투 특성을 철저히 반영하여 '{persona.name}'처럼 자연스럽게 대화하세요.
+2. 절대 캐릭터에서 벗어나지 마세요.
+3. 현재 관계 상태와 시뮬레이션 상황에 맞는 적절한 반응을 해주세요.
+4. 나이에 맞는 어휘와 표현을 사용하세요.
+5. 관계 히스토리가 있다면 그 맥락을 고려하여 대화하세요.
 """
     
     messages = [{"role": "system", "content": persona_prompt}]
@@ -637,6 +807,45 @@ def generate_reply(persona: UserPersona, user_message: str, history: List[dict])
     except Exception as e:
         print(f"응답 생성 오류: {e}")
         return "죄송합니다. 응답 생성 중 오류가 발생했습니다."
+
+
+def summarize_history(history: str, character_name: str) -> str:
+    """사용자가 입력한 히스토리를 AI가 요약합니다.
+    
+    Args:
+        history: 요약할 히스토리 내용
+        character_name: 캐릭터 이름 (요약 시 맥락 참고용)
+    
+    Returns:
+        요약된 히스토리 텍스트
+    """
+    system_prompt = f"""당신은 관계 히스토리 요약 전문가입니다.
+사용자가 입력한 '{character_name}'과의 관계 히스토리를 간결하고 핵심적으로 요약해주세요.
+
+[요약 지침]
+1. 관계의 시작과 발전 과정을 시간순으로 정리
+2. 중요한 사건이나 전환점을 포함
+3. 두 사람 사이의 감정 변화나 특별한 순간 포착
+4. 3~5문장으로 간결하게 요약
+5. 존댓말로 작성
+
+[주의사항]
+- 추측이나 해석을 추가하지 말고, 입력된 내용만 요약
+- 개인정보(전화번호, 주소 등)는 요약에서 제외
+"""
+    
+    try:
+        response = client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"다음 히스토리를 요약해주세요:\n\n{history}"}
+            ],
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"히스토리 요약 오류: {e}")
+        return "히스토리 요약에 실패했습니다."
 
 
 def analyze_chat_performance(
@@ -859,16 +1068,28 @@ def analyze_character(req: AnalyzeRequest):
 @app.post("/chat", response_model=ChatResponse)
 def chat_with_character(req: ChatRequest):
     """
-    추출된 페르소나를 기반으로 대화 응답을 생성합니다.
+    추출된 페르소나와 시뮬레이션 컨텍스트를 기반으로 대화 응답을 생성합니다.
     
     - **persona**: 사용할 페르소나 정보 (UserPersona 객체)
     - **user_message**: 사용자가 보내는 메시지
     - **history**: 이전 대화 내역 (선택사항)
+    - **simulation_context**: 시뮬레이션 컨텍스트 정보 (선택사항)
+      - character_age: 캐릭터 나이
+      - relation_type: 관계 타입 (0: 썸, 1: 연애, 2: 이별)
+      - love_type: 연애 타입 (0~15, 16=미설정)
+      - history_sum: 사용자와 상대간의 이야기 요약
+      - purpose: 시뮬레이션 목적 (FUTURE/PAST)
+      - category: 구체적인 상황 카테고리
     """
     if not req.user_message.strip():
         raise HTTPException(status_code=400, detail="메시지가 비어있습니다.")
     
-    reply = generate_reply(req.persona, req.user_message, req.history)
+    reply = generate_reply(
+        req.persona, 
+        req.user_message, 
+        req.history,
+        req.simulation_context
+    )
     return ChatResponse(reply=reply)
 
 
@@ -905,6 +1126,28 @@ def create_report(req: ReportRequest):
         raise HTTPException(status_code=500, detail="보고서 생성에 실패했습니다.")
     
     return ReportResponse(report=report)
+
+
+@app.post("/summarize-history", response_model=HistorySumResponse)
+def summarize_history_endpoint(req: HistorySumRequest):
+    """
+    사용자가 입력한 히스토리를 AI가 요약합니다.
+    
+    - **history**: 요약할 히스토리 내용
+    - **character_name**: 캐릭터 이름 (요약 시 맥락 참고용)
+    
+    Returns:
+        요약된 히스토리
+    """
+    if not req.history.strip():
+        raise HTTPException(status_code=400, detail="히스토리 내용이 비어있습니다.")
+    
+    if not req.character_name.strip():
+        raise HTTPException(status_code=400, detail="캐릭터 이름이 비어있습니다.")
+    
+    summary = summarize_history(req.history, req.character_name)
+    
+    return HistorySumResponse(summary=summary)
 
 
 # ============================================================

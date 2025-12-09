@@ -55,6 +55,9 @@ public class UserCharacter {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;  // 생성 시간
 
+    @Column(columnDefinition = "TEXT")
+    private String historySum;  // AI가 요약한 히스토리
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

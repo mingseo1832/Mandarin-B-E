@@ -16,19 +16,31 @@ public class ChatController {
     private final ReportService reportService;
 
     /**
-     * 페르소나를 적용한 AI와 대화
+     * 시뮬레이션 기반 AI와 대화
      * POST /api/chat/send
      * 
-     * @param request persona(페르소나 정보), userMessage(사용자 메시지), history(대화 내역)
+     * simulationId를 통해 Simulation과 UserCharacter 정보를 조회하여
+     * AI에게 컨텍스트(나이, 관계, 러브타입, 히스토리, 목적, 카테고리)를 전달합니다.
+     * 
+     * @param request simulationId(시뮬레이션 ID), userMessage(사용자 메시지), history(대화 내역)
      * @return AI 응답
      */
     @PostMapping("/send")
     public ResponseEntity<ChatResponseDto> sendMessage(@RequestBody ChatRequestDto request) {
         
-        System.out.println("[Chat] 메시지 수신: " + request.getUserMessage());
+        // 필수 파라미터 검증
+        if (request.getSimulationId() == null) {
+            throw new IllegalArgumentException("simulationId는 필수입니다.");
+        }
+        if (request.getUserMessage() == null || request.getUserMessage().trim().isEmpty()) {
+            throw new IllegalArgumentException("userMessage는 필수입니다.");
+        }
+        
+        System.out.println("[Chat] 메시지 수신 - 시뮬레이션ID: " + request.getSimulationId() 
+            + ", 메시지: " + request.getUserMessage());
         
         ChatResponseDto response = chatService.chat(
-            request.getPersona(),
+            request.getSimulationId(),
             request.getUserMessage(),
             request.getHistory()
         );

@@ -1,6 +1,7 @@
 package mandarin.com.mandarin_backend.controller;
 
 import mandarin.com.mandarin_backend.dto.AnalyzeRequestDto;
+import mandarin.com.mandarin_backend.dto.HistorySumRequestDto;
 import mandarin.com.mandarin_backend.dto.ParseInfoResponseDto;
 import mandarin.com.mandarin_backend.dto.ParsedChatDataDto;
 import mandarin.com.mandarin_backend.entity.User;
@@ -11,6 +12,7 @@ import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
 import mandarin.com.mandarin_backend.repository.UserRepository;
 import mandarin.com.mandarin_backend.service.AnalysisService;
 import mandarin.com.mandarin_backend.service.KakaoTalkParseService;
+import mandarin.com.mandarin_backend.service.UserCharacterService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,7 @@ public class PersonaController {
     private final KakaoTalkParseService kakaoTalkParseService;
     private final UserCharacterRepository userCharacterRepository;
     private final UserRepository userRepository;
+    private final UserCharacterService userCharacterService;
 
     /**
      * 페르소나 추출 및 시뮬레이션 생성
@@ -243,5 +246,43 @@ public class PersonaController {
         } catch (IOException e) {
             throw new RuntimeException("파일 읽기 실패: " + e.getMessage());
         }
+    }
+
+    /**
+     * 히스토리 요약 및 저장
+     * POST /api/persona/history-summary
+     * 
+     * 사용자가 입력한 히스토리를 AI가 요약하여 UserCharacter의 historySum 필드에 저장
+     * 
+     * @param request characterId, history
+     * @return 저장된 캐릭터 정보 및 요약 결과
+     */
+    @PostMapping("/history-summary")
+    public ResponseEntity<Map<String, Object>> summarizeHistory(@RequestBody HistorySumRequestDto request) {
+        
+        // 필수 파라미터 검증
+        if (request.getCharacterId() == null) {
+            throw new IllegalArgumentException("characterId는 필수입니다.");
+        }
+        if (request.getHistory() == null || request.getHistory().trim().isEmpty()) {
+            throw new IllegalArgumentException("history는 필수입니다.");
+        }
+        
+        System.out.println("[HistorySummary] 히스토리 요약 요청 - 캐릭터ID: " + request.getCharacterId()
+            + ", 히스토리 길이: " + request.getHistory().length() + "자");
+        
+        // 히스토리 요약 및 저장
+        UserCharacter savedCharacter = userCharacterService.summarizeAndSaveHistory(
+            request.getCharacterId(),
+            request.getHistory()
+        );
+        
+        // 응답 반환
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "characterId", savedCharacter.getCharacterId(),
+            "characterName", savedCharacter.getCharacterName(),
+            "historySum", savedCharacter.getHistorySum()
+        ));
     }
 }
