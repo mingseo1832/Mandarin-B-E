@@ -15,13 +15,11 @@ public interface UserCharacterRepository extends JpaRepository<UserCharacter, Lo
     // 사용자 ID로 모든 캐릭터 조회
     List<UserCharacter> findByUserId(Long userId);
 
-    // 캐릭터 이름으로 조회
+    // 단일 조건 조회
     Optional<UserCharacter> findByCharacterName(String characterName);
 
-    // 사용자와 캐릭터 이름으로 조회
+    // 복합 조건 조회
     Optional<UserCharacter> findByUserAndCharacterName(User user, String characterName);
 
-    // 사용자와 카카오톡 이름으로 조회
     Optional<UserCharacter> findByUserAndKakaoName(User user, String kakaoName);
 }
-
