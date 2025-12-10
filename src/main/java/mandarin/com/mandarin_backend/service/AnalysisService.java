@@ -107,14 +107,12 @@ public class AnalysisService {
         }
 
         Simulation simulation = Simulation.builder()
-                .user(character.getUser())
                 .character(character)
                 .simulationName(simulationName)
                 .purpose(purpose)
                 .category(category)
                 .fewShotContext(preprocessed.getText())  // 필터링된 대화 데이터
                 .characterPersona(personaJson)           // 추출된 페르소나 (JSON)
-                .isFinished(false)
                 .build();
 
         Simulation savedSimulation = simulationRepository.save(simulation);

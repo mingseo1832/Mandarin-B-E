@@ -59,8 +59,7 @@ public class UserCharacter {
     private String fullDialogue;    // 전체 대화 내용 저장
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    @Builder.Default
-    private String historySum = "";      // 캐릭터의 과거 대화 요약 데이터
+    private String historySum;      // 캐릭터의 과거 대화 요약 데이터
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;  // 생성 시간
