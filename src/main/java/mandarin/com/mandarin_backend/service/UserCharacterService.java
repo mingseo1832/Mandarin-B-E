@@ -18,26 +18,52 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserCharacterService {
 
-    private final UserRepository userRepository;
+    private final WebClient webClient;
     private final UserCharacterRepository userCharacterRepository;
 
-    @Transactional(readOnly = true)
-    public List<UserCharacterResponseDto> getCharactersByUserId(Long userId) {
+    /**
+     * 히스토리를 AI로 요약하여 UserCharacter에 저장
+     *
+     * @param characterId 캐릭터 ID
+     * @param history 요약할 히스토리 내용
+     * @return 저장된 캐릭터 정보
+     */
+    @Transactional
+    public UserCharacter summarizeAndSaveHistory(Long characterId, String history) {
+        // 1. 캐릭터 조회
+        UserCharacter character = userCharacterRepository.findById(characterId)
+                .orElseThrow(() -> new IllegalArgumentException("캐릭터를 찾을 수 없습니다: " + characterId));
 
-        // 1) 유저 존재 여부 체크
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("회원 정보가 없습니다."));
+        // 2. Python AI 서버로 히스토리 요약 요청
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("history", history);
+        requestBody.put("character_name", character.getCharacterName());
 
-        // 2) 유저에 속한 캐릭터 조회
-        List<UserCharacter> characters = userCharacterRepository.findByUser_Id(userId);
+        HistorySumResponseDto response = webClient.post()
+                .uri("/summarize-history")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(HistorySumResponseDto.class)
+                .block();
 
-        // 3) 엔티티 → DTO 변환
-        return characters.stream()
-                .map(c -> UserCharacterResponseDto.builder()
-                        .characterId(c.getCharacterId())
-                        .characterName(c.getCharacterName())
-                        .kakaoName(c.getKakaoName())
-                        .build())
-                .collect(Collectors.toList());
+        if (response == null || response.getSummary() == null) {
+            throw new RuntimeException("히스토리 요약에 실패했습니다.");
+        }
+
+        // 3. 요약된 히스토리 저장
+        character.setHistorySum(response.getSummary());
+        
+        return userCharacterRepository.save(character);
+    }
+
+    /**
+     * 캐릭터 ID로 캐릭터 조회
+     *
+     * @param characterId 캐릭터 ID
+     * @return 캐릭터 정보
+     */
+    public UserCharacter getCharacterById(Long characterId) {
+        return userCharacterRepository.findById(characterId)
+                .orElseThrow(() -> new IllegalArgumentException("캐릭터를 찾을 수 없습니다: " + characterId));
     }
 }
