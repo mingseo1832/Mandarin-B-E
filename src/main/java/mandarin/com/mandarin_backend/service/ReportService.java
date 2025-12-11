@@ -70,16 +70,7 @@ public class ReportService {
         }
 
         // Entity → DTO 변환
-        ChatReportResponseDto responseDto = ChatReportResponseDto.builder()
-                .chatReportId(report.getChatReportId())
-                .simulationId(report.getSimulation().getSimulationId())
-                .characterId(report.getSimulation().getCharacter().getCharacterId())
-                .scoreAvg(report.getScoreAvg())
-                .labelKey(report.getLabelKey())
-                .labelScore(report.getLabelScore())
-                .reportContent(report.getReportContent())
-                .createdAt(report.getCreatedAt())
-                .build();
+        ChatReportResponseDto responseDto = ChatReportResponseDto.fromEntity(report);
 
         return ApiResponse.success("리포트 조회 성공", responseDto);
     }
@@ -91,20 +82,8 @@ public class ReportService {
 
         return reportRepository.findBySimulationId(simulationId)
                 .map(report -> {
-
-                    ChatReportResponseDto dto = ChatReportResponseDto.builder()
-                            .chatReportId(report.getChatReportId())
-                            .simulationId(report.getSimulation().getSimulationId())
-                            .characterId(report.getSimulation().getCharacter().getCharacterId())
-                            .scoreAvg(report.getScoreAvg())
-                            .labelKey(report.getLabelKey())
-                            .labelScore(report.getLabelScore())
-                            .reportContent(report.getReportContent())
-                            .createdAt(report.getCreatedAt())
-                            .build();
-
+                    ChatReportResponseDto dto = ChatReportResponseDto.fromEntity(report);
                     return ApiResponse.success("리포트 조회 성공", dto);
-
                 })
                 .orElse(ApiResponse.fail("해당 시뮬레이션의 리포트가 존재하지 않습니다."));
     }
