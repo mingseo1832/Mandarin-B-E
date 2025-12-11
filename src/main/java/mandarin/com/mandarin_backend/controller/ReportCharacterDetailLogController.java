@@ -11,18 +11,25 @@ import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/report/chat")
+@RequestMapping("/report/character")
 public class ReportCharacterDetailLogController {
 
     private final ReportCharacterDetailLogService logService;
 
-    @GetMapping("/detaillog/{chat_report_id}")
-    public ResponseEntity<Map<String, Object>> getLogs(@PathVariable("chat_report_id") Integer chatReportId) {
+    /**
+     * ReportCharacter ID로 상세 로그 조회
+     * GET /report/character/detaillog/{report_character_id}
+     * 
+     * @param reportCharacterId ReportCharacter ID
+     * @return 상세 로그 목록
+     */
+    @GetMapping("/detaillog/{report_character_id}")
+    public ResponseEntity<Map<String, Object>> getLogs(@PathVariable("report_character_id") Integer reportCharacterId) {
 
         Map<String, Object> res = new HashMap<>();
 
         try {
-            List<ReportCharacterDetailLogDto> logs = logService.getDetailLogsByChatReportId(chatReportId);
+            List<ReportCharacterDetailLogDto> logs = logService.getDetailLogsByReportCharacterId(reportCharacterId);
 
             res.put("code", 200);
             res.put("data", logs);

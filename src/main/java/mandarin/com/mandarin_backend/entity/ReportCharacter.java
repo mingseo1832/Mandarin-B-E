@@ -18,13 +18,6 @@ public class ReportCharacter {
     private Integer reportCharacterId;  // PK
 
     /**
-     * FK → ChatReport (어떤 레포트의 캐릭터 분석인지)
-     */
-    @ManyToOne
-    @JoinColumn(name = "chat_report_id", nullable = false)
-    private ChatReport chatReport;
-
-    /**
      * FK → UserCharacter
      */
     @ManyToOne

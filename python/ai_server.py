@@ -2,13 +2,38 @@ import os
 import re
 import csv
 import io
+import json
 from datetime import datetime, timedelta
 from collections import OrderedDict
+from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Literal, Optional, Dict, Tuple
+from typing import List, Literal, Optional, Dict, Tuple, Any
 from openai import OpenAI
+
+# ============================================================
+# Lovetype 데이터 로드
+# ============================================================
+
+def load_lovetype_data() -> Dict[str, Any]:
+    """lovetype_summary.json 파일을 로드합니다."""
+    # Python 스크립트 위치 기준으로 상대 경로 계산
+    current_dir = Path(__file__).parent
+    lovetype_path = current_dir.parent / "src" / "main" / "resources" / "data" / "lovetype_summary.json"
+    
+    try:
+        with open(lovetype_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"[WARNING] lovetype_summary.json not found at {lovetype_path}")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] Failed to parse lovetype_summary.json: {e}")
+        return {}
+
+# 앱 시작 시 lovetype 데이터 로드
+LOVETYPE_DATA = load_lovetype_data()
 
 # ============================================================
 # Pydantic 모델 정의 (기존 kakaotalk_text_test.py에서 가져옴)
@@ -660,27 +685,93 @@ def get_relation_type_name(relation_type: int) -> str:
 
 
 def get_love_type_name(love_type: int) -> str:
-    """연애 타입 코드를 한글 이름으로 변환"""
-    love_type_map = {
-        0: "ESTJ - 현실적인 관리자형",
-        1: "ESTP - 활동적인 모험가형",
-        2: "ESFJ - 헌신적인 돌봄이형",
-        3: "ESFP - 자유로운 연예인형",
-        4: "ENTJ - 야망있는 통솔자형",
-        5: "ENTP - 논쟁을 즐기는 변론가형",
-        6: "ENFJ - 따뜻한 선도자형",
-        7: "ENFP - 열정적인 활동가형",
-        8: "ISTJ - 신뢰할 수 있는 현실주의자형",
-        9: "ISTP - 논리적인 장인형",
-        10: "ISFJ - 헌신적인 수호자형",
-        11: "ISFP - 감성적인 예술가형",
-        12: "INTJ - 전략적인 사색가형",
-        13: "INTP - 논리적인 사색가형",
-        14: "INFJ - 통찰력있는 이상주의자형",
-        15: "INFP - 낭만적인 중재자형",
-        16: "미설정"
-    }
-    return love_type_map.get(love_type, "미설정")
+    """연애 타입 코드를 한글 이름으로 변환 (lovetype_summary.json 기반)"""
+    if love_type == 16 or love_type is None:
+        return "미설정"
+    
+    love_type_str = str(love_type)
+    if love_type_str in LOVETYPE_DATA:
+        return LOVETYPE_DATA[love_type_str].get("name", "미설정")
+    
+    return "미설정"
+
+
+def get_love_type_info(love_type: int) -> Optional[Dict[str, Any]]:
+    """연애 타입의 상세 정보를 반환 (lovetype_summary.json 기반)
+    
+    Args:
+        love_type: 연애 타입 코드 (0~15, 16=미설정)
+    
+    Returns:
+        연애 타입 상세 정보 딕셔너리 또는 None
+    """
+    if love_type == 16 or love_type is None:
+        return None
+    
+    love_type_str = str(love_type)
+    if love_type_str in LOVETYPE_DATA:
+        return LOVETYPE_DATA[love_type_str]
+    
+    return None
+
+
+def format_love_type_prompt(love_type: int) -> str:
+    """연애 타입 정보를 시스템 프롬프트용 문자열로 포맷팅
+    
+    Args:
+        love_type: 연애 타입 코드 (0~15, 16=미설정)
+    
+    Returns:
+        포맷팅된 연애 타입 정보 문자열
+    """
+    info = get_love_type_info(love_type)
+    if not info:
+        return "연애 성향: 미설정"
+    
+    name = info.get("name", "미설정")
+    traits = info.get("traits", {})
+    personality = info.get("personality", "")
+    style = info.get("style", "")
+    
+    # traits 정보 포맷팅
+    traits_str = ""
+    if traits:
+        role = traits.get("role", "")  # Lead/Follow
+        affection = traits.get("affection", "")  # Cuddly/Accept
+        mindset = traits.get("mindset", "")  # Passionate/Realistic
+        attitude = traits.get("attitude", "")  # Earnest/Optimistic
+        
+        trait_descriptions = []
+        if role == "Lead":
+            trait_descriptions.append("관계를 주도하는 편")
+        elif role == "Follow":
+            trait_descriptions.append("상대를 따르는 편")
+        
+        if affection == "Cuddly":
+            trait_descriptions.append("애정 표현이 적극적")
+        elif affection == "Accept":
+            trait_descriptions.append("애정을 받아들이는 편")
+        
+        if mindset == "Passionate":
+            trait_descriptions.append("열정적인 연애관")
+        elif mindset == "Realistic":
+            trait_descriptions.append("현실적인 연애관")
+        
+        if attitude == "Earnest":
+            trait_descriptions.append("진지한 태도")
+        elif attitude == "Optimistic":
+            trait_descriptions.append("낙관적인 태도")
+        
+        if trait_descriptions:
+            traits_str = ", ".join(trait_descriptions)
+    
+# 수정된 부분: 요약 변수(summary)를 만들지 않고 원본 내용을 그대로 사용
+    result = f"""연애 성향: {name}
+- 특성: {traits_str if traits_str else "정보 없음"}
+- 성격: {personality}
+- 연애 스타일: {style}"""
+    
+    return result
 
 
 def get_category_description(category: str, purpose: str) -> str:
@@ -759,11 +850,14 @@ def generate_reply(
 
     # 시뮬레이션 컨텍스트가 있으면 추가 정보 포함
     if simulation_context:
+        # lovetype 정보 포맷팅
+        love_type_info = format_love_type_prompt(simulation_context.love_type)
+        
         context_prompt = f"""
 [캐릭터 배경 정보]
 - 나이: {simulation_context.character_age}세 (이 나이대에 맞는 자연스러운 대화를 해주세요)
 - 현재 관계: {get_relation_type_name(simulation_context.relation_type)}
-- 연애 성향: {get_love_type_name(simulation_context.love_type)}
+- {love_type_info}
 
 [시뮬레이션 상황]
 - 목적: {"미래의 불확실한 상황을 미리 연습해보는 시뮬레이션" if simulation_context.purpose == "FUTURE" else "과거에 후회되는 상황을 다시 시도해보는 시뮬레이션"}
