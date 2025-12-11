@@ -68,6 +68,6 @@ public class ChatReportAvg {
      * ENUM 정의 — F1~F6
      */
     public enum TotalLabelKey {
-        F1, F2, F3, F4, F5, F6
+        F1, F2, F3, P1, P2, P3
     }
 }

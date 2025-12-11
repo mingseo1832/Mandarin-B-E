@@ -15,9 +15,15 @@ public class ReportCharacterDetailLogService {
 
     private final ReportCharacterDetailLogRepository logRepository;
 
-    public List<ReportCharacterDetailLogDto> getDetailLogsByChatReportId(Integer chatReportId) {
+    /**
+     * ReportCharacter ID로 상세 로그 조회
+     * 
+     * @param reportCharacterId ReportCharacter ID
+     * @return 상세 로그 DTO 목록
+     */
+    public List<ReportCharacterDetailLogDto> getDetailLogsByReportCharacterId(Integer reportCharacterId) {
         List<ReportCharacterDetailLog> logs =
-                logRepository.findByReportCharacter_ChatReport_ChatReportIdOrderByTimestampAsc(chatReportId);
+                logRepository.findByReportCharacter_ReportCharacterIdOrderByTimestampAsc(reportCharacterId);
 
         if (logs.isEmpty()) {
             throw new IllegalArgumentException("대화 로그가 없습니다.");

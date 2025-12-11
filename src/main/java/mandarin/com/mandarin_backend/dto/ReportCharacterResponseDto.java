@@ -13,7 +13,6 @@ import mandarin.com.mandarin_backend.entity.ReportCharacter;
 public class ReportCharacterResponseDto {
 
     private Integer reportCharacterId;  // PK
-    private Integer chatReportId;       // 연결된 ChatReport ID
     private Long characterId;           // 캐릭터 ID
     private String conflictName;        // 갈등 요소 이름
     private Integer dangerLevel;        // 위험도 (0~100)
@@ -29,7 +28,6 @@ public class ReportCharacterResponseDto {
         }
         return ReportCharacterResponseDto.builder()
                 .reportCharacterId(entity.getReportCharacterId())
-                .chatReportId(entity.getChatReport() != null ? entity.getChatReport().getChatReportId() : null)
                 .characterId(entity.getCharacter() != null ? entity.getCharacter().getCharacterId() : null)
                 .conflictName(entity.getConflictName())
                 .dangerLevel(entity.getDangerLevel())

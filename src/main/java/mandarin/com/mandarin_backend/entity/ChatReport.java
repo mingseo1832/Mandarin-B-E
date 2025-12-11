@@ -42,10 +42,10 @@ public class ChatReport {
     @Column(name = "score_avg", nullable = false)
     private Integer scoreAvg;
 
-    @Column(name = "label_key", nullable = false)
+    @Column(name = "label_key", nullable = false) // 평가지표 (관계유지력/감정안정성/선택일관성/후회해소도/감정표현성숙도/관계회복력)
     private Integer labelKey;
 
-    @Column(name = "label_score", nullable = false)
+    @Column(name = "label_score", nullable = false) // 평가별 점수
     private Integer labelScore;
 
     @Column(name = "report_content", nullable = false, columnDefinition = "LONGTEXT")

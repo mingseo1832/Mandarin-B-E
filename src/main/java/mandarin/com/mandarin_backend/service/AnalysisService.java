@@ -5,19 +5,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import mandarin.com.mandarin_backend.dto.ParseInfoResponseDto;
 import mandarin.com.mandarin_backend.dto.ParsedChatDataDto;
 import mandarin.com.mandarin_backend.dto.ParsedDialogueDto;
+import mandarin.com.mandarin_backend.dto.ReactionTriggerDto;
 import mandarin.com.mandarin_backend.dto.UserPersonaDto;
+import mandarin.com.mandarin_backend.entity.ReportCharacter;
+import mandarin.com.mandarin_backend.entity.ReportCharacterDetailLog;
 import mandarin.com.mandarin_backend.entity.Simulation;
 import mandarin.com.mandarin_backend.entity.UserCharacter;
 import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
 import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
+import mandarin.com.mandarin_backend.repository.ReportCharacterDetailLogRepository;
+import mandarin.com.mandarin_backend.repository.ReportCharacterRepository;
 import mandarin.com.mandarin_backend.repository.SimulationRepository;
 import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
 import mandarin.com.mandarin_backend.util.KakaoTalkParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +36,8 @@ public class AnalysisService {
     private final WebClient webClient;
     private final UserCharacterRepository userCharacterRepository;
     private final SimulationRepository simulationRepository;
+    private final ReportCharacterRepository reportCharacterRepository;
+    private final ReportCharacterDetailLogRepository reportCharacterDetailLogRepository;
     private final KakaoTalkParseService kakaoTalkParseService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -40,6 +49,7 @@ public class AnalysisService {
      * 3. 날짜 기준 필터링
      * 4. 상대방 페르소나 추출
      * 5. Simulation 생성 및 저장 (fewShotContext, characterPersona)
+     * 6. ReportCharacter 및 ReportCharacterDetailLog 저장 (negative_triggers 기반)
      * 
      * @param characterId DB에서 fullDialogue를 조회할 캐릭터 ID
      * @param targetDate 기준 날짜 (null이면 가장 최신 날짜)
@@ -49,6 +59,7 @@ public class AnalysisService {
      * @param category 시뮬레이션 카테고리
      * @return 생성된 시뮬레이션 정보
      */
+    @Transactional
     public AnalysisResult analyzeAndCreateSimulation(
             Long characterId, 
             LocalDate targetDate, 
@@ -118,6 +129,19 @@ public class AnalysisService {
         Simulation savedSimulation = simulationRepository.save(simulation);
 
         System.out.println("[Analyze] 시뮬레이션 저장 완료 - ID: " + savedSimulation.getSimulationId());
+
+        // 6. ReportCharacter 및 ReportCharacterDetailLog 저장 (negative_triggers 기반)
+        if (persona.getReactionPatterns() != null && 
+            persona.getReactionPatterns().getNegativeTriggers() != null &&
+            !persona.getReactionPatterns().getNegativeTriggers().isEmpty()) {
+            
+            saveReportCharacterFromNegativeTriggers(
+                character, 
+                persona.getReactionPatterns().getNegativeTriggers(),
+                kakaoName,
+                targetName
+            );
+        }
 
         return AnalysisResult.builder()
                 .simulation(savedSimulation)
@@ -220,5 +244,202 @@ public class AnalysisService {
         );
         
         return parser.toText(filteredData);
+    }
+
+    /**
+     * negative_triggers를 기반으로 ReportCharacter 및 ReportCharacterDetailLog 저장
+     * 
+     * @param character 대상 캐릭터
+     * @param negativeTriggers 부정적 반응 트리거 목록 (최대 3개)
+     * @param userName 사용자 이름 (카카오톡 본인)
+     * @param targetName 상대방 이름 (분석 대상)
+     */
+    private void saveReportCharacterFromNegativeTriggers(
+            UserCharacter character,
+            List<ReactionTriggerDto> negativeTriggers,
+            String userName,
+            String targetName) {
+        
+        // 기존 ReportCharacter 삭제 (새로 분석된 결과로 교체)
+        List<ReportCharacter> existingReports = reportCharacterRepository.findByCharacter_CharacterId(character.getCharacterId());
+        for (ReportCharacter existing : existingReports) {
+            reportCharacterDetailLogRepository.deleteByReportCharacter_ReportCharacterId(existing.getReportCharacterId());
+        }
+        reportCharacterRepository.deleteAll(existingReports);
+        
+        LocalDateTime baseTime = LocalDateTime.now();
+        int messageOrder = 0;  // 전체 메시지 순서 (모든 ReportCharacter의 DetailLog에 걸쳐 순차 증가)
+        
+        // 위험도 배열 (첫 번째가 가장 심각: 90, 70, 50)
+        int[] dangerLevels = {90, 70, 50};
+        
+        for (int i = 0; i < negativeTriggers.size(); i++) {
+            ReactionTriggerDto trigger = negativeTriggers.get(i);
+            int dangerLevel = i < dangerLevels.length ? dangerLevels[i] : 40;
+            
+            // 1. ReportCharacter 저장
+            ReportCharacter reportCharacter = ReportCharacter.builder()
+                    .character(character)
+                    .conflictName(trigger.getTrigger())  // 키워드
+                    .dangerLevel(dangerLevel)
+                    .description(trigger.getReaction())  // 부정적 반응 패턴 설명
+                    .solution(generateSolution(trigger.getTrigger(), trigger.getReaction()))
+                    .build();
+            
+            ReportCharacter savedReport = reportCharacterRepository.save(reportCharacter);
+            
+            // 2. ReportCharacterDetailLog 저장 (example 문장 파싱)
+            if (trigger.getExample() != null && !trigger.getExample().isEmpty()) {
+                messageOrder = saveExampleAsDetailLogs(
+                    savedReport, 
+                    trigger.getExample(), 
+                    userName, 
+                    targetName, 
+                    baseTime, 
+                    messageOrder
+                );
+            }
+        }
+        
+        System.out.println("[Analyze] ReportCharacter 저장 완료 - 캐릭터ID: " + character.getCharacterId() 
+            + ", 갈등요소 개수: " + negativeTriggers.size());
+    }
+
+    /**
+     * 갈등 요소에 대한 해결 방안 생성
+     * 
+     * @param conflictName 갈등 요소 이름
+     * @param reaction 부정적 반응 패턴
+     * @return 관계 개선 조언
+     */
+    private String generateSolution(String conflictName, String reaction) {
+        // 기본 템플릿 기반 조언 생성
+        StringBuilder solution = new StringBuilder();
+        solution.append("'").append(conflictName).append("'에 대해 상대방이 민감하게 반응하는 것으로 보입니다. ");
+        solution.append("이 주제에 대해 대화할 때는 상대방의 감정을 먼저 인정하고, ");
+        solution.append("공감하는 표현을 사용해보세요. ");
+        solution.append("필요하다면 솔직하게 서로의 생각을 나누는 시간을 가져보는 것도 좋습니다.");
+        return solution.toString();
+    }
+
+    /**
+     * example 문장을 파싱하여 ReportCharacterDetailLog로 저장
+     * 대화 형식의 예시를 개별 메시지로 분리하여 저장
+     * 
+     * @param reportCharacter 연결할 ReportCharacter
+     * @param example 예시 대화 문자열
+     * @param userName 사용자 이름
+     * @param targetName 상대방 이름
+     * @param baseTime 기준 시간
+     * @param startOrder 시작 순서 번호
+     * @return 다음 순서 번호
+     */
+    private int saveExampleAsDetailLogs(
+            ReportCharacter reportCharacter,
+            String example,
+            String userName,
+            String targetName,
+            LocalDateTime baseTime,
+            int startOrder) {
+        
+        int order = startOrder;
+        
+        // example 문장을 줄바꿈이나 구분자로 분리 시도
+        // 형식 예: "사용자: 메시지1\n상대방: 메시지2" 또는 단순 문장
+        String[] lines = example.split("\\n|\\r\\n");
+        
+        for (String line : lines) {
+            String trimmedLine = line.trim();
+            if (trimmedLine.isEmpty()) continue;
+            
+            // sender 결정: 이름이 포함되어 있으면 해당 사람, 아니면 문맥 기반 추정
+            boolean isUser = determineSender(trimmedLine, userName, targetName);
+            String message = extractMessage(trimmedLine, userName, targetName);
+            
+            ReportCharacterDetailLog detailLog = ReportCharacterDetailLog.builder()
+                    .reportCharacter(reportCharacter)
+                    .sender(isUser)  // false = USER, true = CHARACTER
+                    .messageKakao(message)
+                    .timestamp(baseTime.plusSeconds(order))
+                    .build();
+            
+            reportCharacterDetailLogRepository.save(detailLog);
+            order++;
+        }
+        
+        // 단일 문장인 경우 (줄바꿈 없음)
+        if (lines.length <= 1 && order == startOrder) {
+            String message = example.trim();
+            if (!message.isEmpty()) {
+                // 기본적으로 상대방(CHARACTER)의 반응으로 저장
+                ReportCharacterDetailLog detailLog = ReportCharacterDetailLog.builder()
+                        .reportCharacter(reportCharacter)
+                        .sender(true)  // CHARACTER (분석 대상)
+                        .messageKakao(message)
+                        .timestamp(baseTime.plusSeconds(order))
+                        .build();
+                
+                reportCharacterDetailLogRepository.save(detailLog);
+                order++;
+            }
+        }
+        
+        return order;
+    }
+
+    /**
+     * 메시지 발신자 결정
+     * 
+     * @param line 대화 라인
+     * @param userName 사용자 이름
+     * @param targetName 상대방 이름
+     * @return true = CHARACTER(상대방), false = USER(사용자)
+     */
+    private boolean determineSender(String line, String userName, String targetName) {
+        // "이름:" 또는 "이름 :" 형식 확인
+        if (line.startsWith(userName + ":") || line.startsWith(userName + " :")) {
+            return false;  // USER
+        }
+        if (line.startsWith(targetName + ":") || line.startsWith(targetName + " :")) {
+            return true;   // CHARACTER
+        }
+        
+        // 이름이 포함된 경우
+        if (line.contains(userName)) {
+            return false;  // USER
+        }
+        if (line.contains(targetName)) {
+            return true;   // CHARACTER
+        }
+        
+        // 기본값: CHARACTER (분석 대상의 반응이므로)
+        return true;
+    }
+
+    /**
+     * 라인에서 실제 메시지 내용 추출 (이름 접두사 제거)
+     * 
+     * @param line 대화 라인
+     * @param userName 사용자 이름
+     * @param targetName 상대방 이름
+     * @return 메시지 내용
+     */
+    private String extractMessage(String line, String userName, String targetName) {
+        // "이름:" 또는 "이름 :" 형식 제거
+        if (line.startsWith(userName + ":")) {
+            return line.substring(userName.length() + 1).trim();
+        }
+        if (line.startsWith(userName + " :")) {
+            return line.substring(userName.length() + 2).trim();
+        }
+        if (line.startsWith(targetName + ":")) {
+            return line.substring(targetName.length() + 1).trim();
+        }
+        if (line.startsWith(targetName + " :")) {
+            return line.substring(targetName.length() + 2).trim();
+        }
+        
+        // 접두사 없으면 원본 반환
+        return line;
     }
 }

@@ -7,5 +7,13 @@ import java.util.List;
 
 public interface ReportCharacterDetailLogRepository extends JpaRepository<ReportCharacterDetailLog, Long> {
 
-    List<ReportCharacterDetailLog> findByReportCharacter_ChatReport_ChatReportIdOrderByTimestampAsc(Integer chatReportId);
+    /**
+     * ReportCharacter ID로 상세 로그 조회 (시간순)
+     */
+    List<ReportCharacterDetailLog> findByReportCharacter_ReportCharacterIdOrderByTimestampAsc(Integer reportCharacterId);
+
+    /**
+     * ReportCharacter ID로 상세 로그 삭제
+     */
+    void deleteByReportCharacter_ReportCharacterId(Integer reportCharacterId);
 }
