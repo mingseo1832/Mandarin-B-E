@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import mandarin.com.mandarin_backend.dto.*;
 import mandarin.com.mandarin_backend.entity.ChatReport;
+import mandarin.com.mandarin_backend.entity.ChatReportDetailLog;
 import mandarin.com.mandarin_backend.entity.Simulation;
 import mandarin.com.mandarin_backend.entity.User;
 import mandarin.com.mandarin_backend.entity.UserCharacter;
+import mandarin.com.mandarin_backend.repository.ChatReportDetailLogRepository;
 import mandarin.com.mandarin_backend.repository.ReportRepository;
 import mandarin.com.mandarin_backend.repository.SimulationRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class ReportService {
 
     private final WebClient webClient;
     private final ReportRepository reportRepository;
+    private final ChatReportDetailLogRepository chatReportDetailLogRepository;
     private final SimulationRepository simulationRepository;
     private final ObjectMapper objectMapper;
 
@@ -103,11 +106,12 @@ public class ReportService {
     }
 
     /**
-     * 개별 metric 리포트 저장
+     * 개별 metric 리포트 저장 및 KeyConversation을 DetailLog에 저장
      */
     private void saveMetricReport(Simulation simulation, User user, UserCharacter character,
                                   MetricScoreDto metric, int labelKey, int scoreAvg, 
                                   String reportContent, LocalDateTime createdAt) {
+        // 1. ChatReport 저장
         ChatReport chatReport = ChatReport.builder()
                 .simulation(simulation)
                 .user(user)
@@ -119,7 +123,38 @@ public class ReportService {
                 .createdAt(createdAt)
                 .build();
         
-        reportRepository.save(chatReport);
+        ChatReport savedReport = reportRepository.save(chatReport);
+        
+        // 2. KeyConversation을 ChatReportDetailLog에 저장
+        if (metric.getKeyConversations() != null && !metric.getKeyConversations().isEmpty()) {
+            saveKeyConversations(savedReport.getChatReportId(), metric.getKeyConversations(), createdAt);
+        }
+    }
+
+    /**
+     * KeyConversation 목록을 ChatReportDetailLog에 저장
+     * 
+     * @param chatReportId ChatReport ID
+     * @param keyConversations 주요 대화 목록
+     * @param baseTime 기준 시간
+     */
+    private void saveKeyConversations(Integer chatReportId, List<KeyConversationDto> keyConversations, 
+                                      LocalDateTime baseTime) {
+        for (int i = 0; i < keyConversations.size(); i++) {
+            KeyConversationDto conversation = keyConversations.get(i);
+            
+            ChatReportDetailLog detailLog = ChatReportDetailLog.builder()
+                    .chatReportId(chatReportId)
+                    .sender(conversation.getRole())  // "user" 또는 "assistant"
+                    .message(conversation.getContent())
+                    .timestamp(baseTime.plusSeconds(i))  // 순서대로 약간의 시간차 부여
+                    .build();
+            
+            chatReportDetailLogRepository.save(detailLog);
+        }
+        
+        System.out.println("[Report] KeyConversation 저장 완료 - ChatReportID: " + chatReportId 
+            + ", 개수: " + keyConversations.size());
     }
 
     /**
