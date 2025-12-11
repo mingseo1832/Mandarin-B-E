@@ -1,10 +1,12 @@
 package mandarin.com.mandarin_backend.controller;
 
 import lombok.RequiredArgsConstructor;
+import mandarin.com.mandarin_backend.dto.ReportCharacterResponseDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterRequestDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterResponseDto;
 import mandarin.com.mandarin_backend.exception.CharacterNotFoundException;
 import mandarin.com.mandarin_backend.exception.UserNotFoundException;
+import mandarin.com.mandarin_backend.service.ReportCharacterService;
 import mandarin.com.mandarin_backend.service.UserCharacterService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,7 @@ import java.util.*;
 public class UserCharacterController {
 
     private final UserCharacterService characterService;
+    private final ReportCharacterService reportCharacterService;
 
     // ----------------- 캐릭터 다건 조회 -----------------
     @GetMapping("/user/{id}")
@@ -101,6 +104,25 @@ public class UserCharacterController {
             return ResponseEntity.ok(Map.of("code", 200));
 
         } catch (CharacterNotFoundException e) {
+            return error(e.getMessage());
+        }
+    }
+
+    // ----------------- 캐릭터 리포트 조회 -----------------
+    @GetMapping("/report/{character_id}")
+    public ResponseEntity<?> getCharacterReports(@PathVariable("character_id") Long characterId) {
+
+        try {
+            List<ReportCharacterResponseDto> list =
+                    reportCharacterService.getReportsByCharacterId(characterId);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("code", 200);
+            result.put("data", list);
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
             return error(e.getMessage());
         }
     }
