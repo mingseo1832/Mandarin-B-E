@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import mandarin.com.mandarin_backend.entity.ChatReport;
 
 @Data
 @NoArgsConstructor
@@ -19,6 +20,25 @@ public class ChatReportResponseDto {
     private Integer scoreAvg;           // 평균 점수
     private Integer labelKey;           // 라벨 키
     private Integer labelScore;         // 라벨 점수
-    private String reportContent;       // 레포트 내용 (JSON)
+    private String reportContent;       // 레포트 내용
     private LocalDateTime createdAt;    // 생성 시간
+
+    /**
+     * ChatReport → DTO 변환
+     */
+    public static ChatReportResponseDto fromEntity(ChatReport entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("ChatReport entity cannot be null");
+        }
+        return ChatReportResponseDto.builder()
+                .chatReportId(entity.getChatReportId())
+                .simulationId(entity.getSimulation() != null ? entity.getSimulation().getSimulationId() : null)
+                .characterId(entity.getCharacter() != null ? entity.getCharacter().getCharacterId() : null)
+                .scoreAvg(entity.getScoreAvg())
+                .labelKey(entity.getLabelKey())
+                .labelScore(entity.getLabelScore())
+                .reportContent(entity.getReportContent())
+                .createdAt(entity.getCreatedAt())
+                .build();
+    }
 }
