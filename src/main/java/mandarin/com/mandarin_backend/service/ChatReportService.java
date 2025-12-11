@@ -1,8 +1,11 @@
 package mandarin.com.mandarin_backend.service;
 
 import lombok.RequiredArgsConstructor;
+import mandarin.com.mandarin_backend.dto.ChatReportAvgResponseDto;
 import mandarin.com.mandarin_backend.dto.ChatReportResponseDto;
 import mandarin.com.mandarin_backend.entity.ChatReport;
+import mandarin.com.mandarin_backend.entity.ChatReportAvg;
+import mandarin.com.mandarin_backend.repository.ChatReportAvgRepository;
 import mandarin.com.mandarin_backend.repository.ChatReportRepository;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +17,7 @@ import java.util.stream.Collectors;
 public class ChatReportService {
 
     private final ChatReportRepository chatReportRepository;
+    private final ChatReportAvgRepository chatReportAvgRepository;
 
     // 리포트 단건 조회
     public ChatReportResponseDto getChatReportById(Integer id) {
@@ -46,6 +50,19 @@ public class ChatReportService {
 
         return list.stream()
                 .map(ChatReportResponseDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    // 유저별 리포트 평균 조회
+    public List<ChatReportAvgResponseDto> getChatReportAvgByUserId(Long userId) {
+        List<ChatReportAvg> list = chatReportAvgRepository.findByUser_Id(userId);
+
+        if (list.isEmpty()) {
+            throw new IllegalArgumentException("해당 유저의 리포트 평균 정보가 없습니다.");
+        }
+
+        return list.stream()
+                .map(ChatReportAvgResponseDto::fromEntity)
                 .collect(Collectors.toList());
     }
 }
