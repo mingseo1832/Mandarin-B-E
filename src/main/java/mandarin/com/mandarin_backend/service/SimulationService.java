@@ -55,6 +55,37 @@ public class SimulationService {
     }
 
     /**
+     * simulation_id로 시뮬레이션 대화 다건 조회
+     * 해당 시뮬레이션의 모든 대화 메시지를 시간순으로 반환
+     */
+    public ApiResponse<List<SimulationMessageResponseDto>> getMessagesBySimulationId(Long simulationId) {
+        try {
+            // 1. 시뮬레이션 존재 여부 확인
+            boolean exists = simulationRepository.existsById(simulationId);
+            if (!exists) {
+                return ApiResponse.fail("시뮬레이션을 찾을 수 없습니다: " + simulationId);
+            }
+
+            // 2. 해당 시뮬레이션의 모든 메시지 조회 (시간순)
+            List<SimulationMessage> messages = simulationMessageRepository
+                    .findBySimulationSimulationIdOrderByTimestampAsc(simulationId);
+
+            // 3. SimulationMessage 엔티티를 SimulationMessageResponseDto로 변환
+            List<SimulationMessageResponseDto> responseDtos = messages.stream()
+                    .map(message -> SimulationMessageResponseDto.builder()
+                            .sender(message.getSender())
+                            .content(message.getContent())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return ApiResponse.success("대화 정보 조회 성공", responseDtos);
+
+        } catch (Exception e) {
+            return ApiResponse.fail("대화 정보 조회 실패: " + e.getMessage());
+        }
+    }
+
+    /**
      * 시뮬레이션 메시지 저장 및 AI 응답 받기
      * 1. 사용자 메시지를 SimulationMessage 테이블에 저장
      * 2. Simulation 테이블의 lastUpdateTime 업데이트
