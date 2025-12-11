@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class ChatReportDetailLog {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "Chat_Report_DetailLog_id")
     private Long chatReportDetailLogId;
 
