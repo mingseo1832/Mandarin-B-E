@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import mandarin.com.mandarin_backend.dto.*;
 import mandarin.com.mandarin_backend.entity.ChatReport;
+import mandarin.com.mandarin_backend.entity.ChatReportAvg;
 import mandarin.com.mandarin_backend.entity.ChatReportDetailLog;
 import mandarin.com.mandarin_backend.entity.Simulation;
 import mandarin.com.mandarin_backend.entity.User;
 import mandarin.com.mandarin_backend.entity.UserCharacter;
+import mandarin.com.mandarin_backend.repository.ChatReportAvgRepository;
 import mandarin.com.mandarin_backend.repository.ChatReportDetailLogRepository;
 import mandarin.com.mandarin_backend.repository.ReportRepository;
 import mandarin.com.mandarin_backend.repository.SimulationRepository;
@@ -29,6 +31,7 @@ public class ReportService {
     private final WebClient webClient;
     private final ReportRepository reportRepository;
     private final ChatReportDetailLogRepository chatReportDetailLogRepository;
+    private final ChatReportAvgRepository chatReportAvgRepository;
     private final SimulationRepository simulationRepository;
     private final ObjectMapper objectMapper;
 
@@ -72,6 +75,10 @@ public class ReportService {
         if (response != null && response.getReport() != null) {
             saveReportToDb(simulation, user, character, response.getReport(), scenarioType);
             System.out.println("[Report] 리포트 저장 완료 - 시뮬레이션ID: " + simulationId);
+            
+            // 4. 평균 점수 계산 및 ChatReportAvg 저장
+            updateReportAverage(user);
+            System.out.println("[Report] 평균 점수 업데이트 완료 - 사용자ID: " + user.getId());
         }
 
         return response;
@@ -84,25 +91,44 @@ public class ReportService {
     private void saveReportToDb(Simulation simulation, User user, UserCharacter character,
                                 SimulationReportDto report, String scenarioType) {
         
+        // Null 체크: scores
         ScenarioScoresDto scores = report.getScores();
+        if (scores == null) {
+            throw new IllegalStateException("리포트 응답에 scores가 null입니다.");
+        }
+        
+        // Null 체크: report 내부 객체 및 overallRating
+        if (report.getReport() == null) {
+            throw new IllegalStateException("리포트 응답에 report 객체가 null입니다.");
+        }
         int overallRating = report.getReport().getOverallRating();
         LocalDateTime now = LocalDateTime.now();
         
         // 전체 리포트 내용을 JSON으로 변환
         String reportContentJson = convertReportToJson(report);
         
+        // Null 체크: 각 metric
+        MetricScoreDto metric1 = scores.getMetric1();
+        MetricScoreDto metric2 = scores.getMetric2();
+        MetricScoreDto metric3 = scores.getMetric3();
+        
+        if (metric1 == null || metric2 == null || metric3 == null) {
+            throw new IllegalStateException("리포트 응답에 metric 값이 누락되었습니다. " +
+                "metric1=" + (metric1 != null) + ", metric2=" + (metric2 != null) + ", metric3=" + (metric3 != null));
+        }
+        
         // 각 metric별로 저장 (3개의 레코드)
         // metric_1: ECI(관계유지력) 또는 RRI(후회해소도)
-        saveMetricReport(simulation, user, character, scores.getMetric1(), 
-                        getLabelKey(scores.getMetric1().getCode()), overallRating, reportContentJson, now);
+        saveMetricReport(simulation, user, character, metric1, 
+                        getLabelKey(metric1.getCode()), overallRating, reportContentJson, now);
         
         // metric_2: EVR(감정안정성) 또는 EEQI(감정표현성숙도)
-        saveMetricReport(simulation, user, character, scores.getMetric2(),
-                        getLabelKey(scores.getMetric2().getCode()), overallRating, reportContentJson, now);
+        saveMetricReport(simulation, user, character, metric2,
+                        getLabelKey(metric2.getCode()), overallRating, reportContentJson, now);
         
         // metric_3: CCS(선택일관성) 또는 RPS(관계회복력)
-        saveMetricReport(simulation, user, character, scores.getMetric3(),
-                        getLabelKey(scores.getMetric3().getCode()), overallRating, reportContentJson, now);
+        saveMetricReport(simulation, user, character, metric3,
+                        getLabelKey(metric3.getCode()), overallRating, reportContentJson, now);
     }
 
     /**
@@ -254,5 +280,86 @@ public class ReportService {
                     return ApiResponse.success("리포트 조회 성공", dto);
                 })
                 .orElse(ApiResponse.fail("해당 시뮬레이션의 리포트가 존재하지 않습니다."));
+    }
+
+    /**
+     * 사용자의 전체 리포트 평균 점수 계산 및 ChatReportAvg에 저장
+     * - score_avg 전체 평균 → avg_mandarin_score
+     * - label_key별 label_score 평균 → total_label_score (각 total_label_key별)
+     * 
+     * @param user 사용자 엔티티
+     */
+    private void updateReportAverage(User user) {
+        Long userId = user.getId();
+        
+        // 1. 사용자의 최신 리포트 조회 (FK 연결용)
+        ChatReport latestReport = reportRepository.findFirstByUser_IdOrderByCreatedAtDesc(userId);
+        if (latestReport == null) {
+            System.out.println("[ReportAvg] 사용자의 리포트가 없어 평균 계산을 건너뜁니다.");
+            return;
+        }
+        
+        // 2. 전체 score_avg 평균 계산
+        Double avgMandarinScore = reportRepository.calculateAvgScoreByUserId(userId);
+        if (avgMandarinScore == null) {
+            avgMandarinScore = 0.0;
+        }
+        int avgMandarinScoreInt = (int) Math.round(avgMandarinScore);
+        
+        // 3. 기존 사용자의 ChatReportAvg 삭제 (새로 계산된 값으로 교체)
+        List<ChatReportAvg> existingAvgs = chatReportAvgRepository.findByUser_Id(userId);
+        if (!existingAvgs.isEmpty()) {
+            chatReportAvgRepository.deleteAll(existingAvgs);
+        }
+        
+        LocalDateTime now = LocalDateTime.now();
+        
+        // 4. 각 label_key(1~6)별 평균 계산 및 저장
+        for (int labelKey = 1; labelKey <= 6; labelKey++) {
+            Double avgLabelScore = reportRepository.calculateAvgLabelScoreByUserIdAndLabelKey(userId, labelKey);
+            
+            // 해당 label_key에 대한 데이터가 없으면 건너뜀
+            if (avgLabelScore == null) {
+                continue;
+            }
+            
+            int avgLabelScoreInt = (int) Math.round(avgLabelScore);
+            ChatReportAvg.TotalLabelKey totalLabelKey = convertToTotalLabelKey(labelKey);
+            
+            ChatReportAvg chatReportAvg = ChatReportAvg.builder()
+                    .chatReport(latestReport)
+                    .user(user)
+                    .avgMandarinScore(avgMandarinScoreInt)
+                    .totalLabelKey(totalLabelKey)
+                    .totalLabelScore(avgLabelScoreInt)
+                    .createdAt(now)
+                    .build();
+            
+            chatReportAvgRepository.save(chatReportAvg);
+        }
+        
+        System.out.println("[ReportAvg] 평균 저장 완료 - 사용자ID: " + userId + 
+            ", avgMandarinScore: " + avgMandarinScoreInt);
+    }
+
+    /**
+     * label_key (1~6)를 TotalLabelKey enum으로 변환
+     * 1 → F1 (ECI/관계유지력)
+     * 2 → F2 (EVR/감정안정성)
+     * 3 → F3 (CCS/선택일관성)
+     * 4 → P1 (RRI/후회해소도)
+     * 5 → P2 (EEQI/감정표현성숙도)
+     * 6 → P3 (RPS/관계회복력)
+     */
+    private ChatReportAvg.TotalLabelKey convertToTotalLabelKey(int labelKey) {
+        return switch (labelKey) {
+            case 1 -> ChatReportAvg.TotalLabelKey.F1;
+            case 2 -> ChatReportAvg.TotalLabelKey.F2;
+            case 3 -> ChatReportAvg.TotalLabelKey.F3;
+            case 4 -> ChatReportAvg.TotalLabelKey.P1;
+            case 5 -> ChatReportAvg.TotalLabelKey.P2;
+            case 6 -> ChatReportAvg.TotalLabelKey.P3;
+            default -> throw new IllegalArgumentException("유효하지 않은 labelKey: " + labelKey);
+        };
     }
 }

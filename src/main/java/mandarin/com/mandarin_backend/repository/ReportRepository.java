@@ -34,4 +34,26 @@ public interface ReportRepository extends JpaRepository<ChatReport, Integer> {
      * 캐릭터 ID로 최신 리포트 1개 조회
      */
     ChatReport findFirstBySimulation_Character_CharacterIdOrderByCreatedAtDesc(Long characterId);
+
+    /**
+     * 사용자 ID로 모든 리포트 조회
+     */
+    List<ChatReport> findByUser_Id(Long userId);
+
+    /**
+     * 사용자별 전체 score_avg의 평균 계산
+     */
+    @Query("SELECT AVG(cr.scoreAvg) FROM ChatReport cr WHERE cr.user.id = :userId")
+    Double calculateAvgScoreByUserId(@Param("userId") Long userId);
+
+    /**
+     * 사용자별 특정 label_key의 label_score 평균 계산
+     */
+    @Query("SELECT AVG(cr.labelScore) FROM ChatReport cr WHERE cr.user.id = :userId AND cr.labelKey = :labelKey")
+    Double calculateAvgLabelScoreByUserIdAndLabelKey(@Param("userId") Long userId, @Param("labelKey") Integer labelKey);
+
+    /**
+     * 사용자의 최신 리포트 1개 조회
+     */
+    ChatReport findFirstByUser_IdOrderByCreatedAtDesc(Long userId);
 }
