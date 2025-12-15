@@ -25,22 +25,29 @@ public class UserCharacterController {
 
     // ----------------- 캐릭터 다건 조회 -----------------
     @GetMapping("/user/{id}")
-    public ResponseEntity<?> getCharacters(@PathVariable Long id) {
+public ResponseEntity<?> getCharacters(@PathVariable Long id) {
+    try {
+        // 1. 서비스 호출
+        List<UserCharacterResponseDto> list = characterService.getCharactersByUserId(id);
 
-        try {
-            List<UserCharacterResponseDto> list =
-                    characterService.getCharactersByUserId(id);
+        // 2. 결과 맵 생성
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("data", list);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("code", 200);
-            result.put("data", list);
+        // 3. 정상 반환
+        return ResponseEntity.ok(result);
 
-            return ResponseEntity.ok(result);
-
-        } catch (UserNotFoundException e) {
-            return error(e.getMessage());
-        }
+    } catch (UserNotFoundException e) {
+        // 유저가 없을 때
+        return ResponseEntity.status(404).body(e.getMessage());
+        
+    } catch (Exception e) { 
+        // 🚨 중요: 여기서 나머지 모든 에러(Null ID 등)를 잡아서 메시지를 확인해야 합니다.
+        e.printStackTrace(); // 콘솔에 에러 원인 출력
+        return ResponseEntity.status(500).body("서버 에러 발생: " + e.getMessage());
     }
+}
 
     // ----------------- 캐릭터 단건 조회 -----------------
     @GetMapping("/{characterId}")
