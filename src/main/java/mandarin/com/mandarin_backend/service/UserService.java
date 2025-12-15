@@ -91,9 +91,9 @@ public class UserService {
     }
 
     // 5. Love Type 업데이트 기능
-    public ApiResponse<Void> updateLoveType(String userId, Integer loveType) {
+    public ApiResponse<Void> updateLoveType(Long id, Integer loveType) {
 
-        User user = userRepository.findByUserId(userId).orElse(null);
+        User user = userRepository.findById(id).orElse(null);
 
         if (user == null) {
             return ApiResponse.fail("존재하지 않는 사용자입니다.");
