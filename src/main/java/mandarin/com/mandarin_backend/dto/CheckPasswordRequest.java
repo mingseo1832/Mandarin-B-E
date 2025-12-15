@@ -6,6 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CheckPasswordRequest {
+    private Long userId;
     private String password;
 }
 
