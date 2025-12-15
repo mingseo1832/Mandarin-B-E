@@ -20,7 +20,7 @@ def load_lovetype_data() -> Dict[str, Any]:
     """lovetype_summary.json 파일을 로드합니다."""
     # Python 스크립트 위치 기준으로 상대 경로 계산
     current_dir = Path(__file__).parent
-    lovetype_path = current_dir.parent / "src" / "main" / "resources" / "data" / "lovetype_summary.json"
+    lovetype_path = current_dir.parent / "python" / "lovetype_summary.json"
     
     try:
         with open(lovetype_path, "r", encoding="utf-8") as f:
