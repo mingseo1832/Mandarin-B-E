@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -168,13 +169,13 @@ public class PersonaController {
     public ResponseEntity<Map<String, Object>> uploadAndSave(
             @RequestParam("file") MultipartFile file,
             @RequestParam("userId") String userId,
-            @RequestParam("targetName") String targetName,
+            @RequestParam("kakaoName") String kakaoName,
             @RequestParam("characterName") String characterName,
             @RequestParam(value = "characterAge", defaultValue = "0") int characterAge,
             @RequestParam(value = "relationType", defaultValue = "0") int relationType) {
         
         System.out.println("[Upload] 파일 업로드 - 파일명: " + file.getOriginalFilename() 
-            + ", 사용자: " + userId + ", 대상: " + targetName);
+            + ", 사용자: " + userId + ", 대상: " + kakaoName);
 
         if (file.isEmpty()) {
             throw new IllegalArgumentException("파일이 비어있습니다.");
@@ -188,21 +189,31 @@ public class PersonaController {
             ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(rawTextContent);
             
             // 3. 대상 인물 존재 여부 확인
-            if (!parsedData.getParticipants().contains(targetName)) {
+            if (!parsedData.getParticipants().contains(kakaoName)) {
                 throw new IllegalArgumentException(
-                    "대상 인물 '" + targetName + "'을(를) 찾을 수 없습니다. " +
+                    "대화에서 '" + kakaoName + "'을(를) 찾을 수 없습니다. " +
                     "참여자 목록: " + parsedData.getParticipants()
                 );
             }
 
-            // 4. 파싱 + PII 마스킹 + JSON 변환 (최초 1회만 파싱)
+            // 4. participants에서 상대방 찾기(kakaoName 제외)
+            List<String> participants = parsedData.getParticipants();
+            String targetName = participants.stream()
+                .filter(name -> !name.equals(kakaoName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "1:1 대화에서 상대방을 찾을 수 없습니다. 참여자: " + participants));
+
+            System.out.println("[Upload] 상대방 자동 찾기 - 본인: " + kakaoName + ", 상대방: " + targetName);
+
+            // 5. 파싱 + PII 마스킹 + JSON 변환 (최초 1회만 파싱)
             String dialogueJson = kakaoTalkParseService.parseAndConvertToJson(rawTextContent);
 
-            // 5. 사용자 조회
+            // 6. 사용자 조회
             User user = userRepository.findByUserId(userId)
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
-            // 6. 기존 캐릭터 확인 또는 새로 생성
+            // 7. 기존 캐릭터 확인 또는 새로 생성
             UserCharacter character = userCharacterRepository
                     .findByUserAndKakaoName(user, targetName)
                     .orElse(null);
@@ -225,10 +236,10 @@ public class PersonaController {
                 character.setFullDialogue(dialogueJson);
             }
 
-            // 7. DB 저장
+            // 8. DB 저장
             UserCharacter savedCharacter = userCharacterRepository.save(character);
 
-            // 8. 응답 반환
+            // 9. 응답 반환
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "characterId", savedCharacter.getCharacterId(),
