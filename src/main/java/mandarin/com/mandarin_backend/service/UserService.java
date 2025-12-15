@@ -76,9 +76,9 @@ public class UserService {
 
     // 4. 사용자 탈퇴 기능
 
-    public ApiResponse<Void> deleteUser(String userId) {
+    public ApiResponse<Void> deleteUser(Long id) {
 
-        User user = userRepository.findByUserId(userId).orElse(null);
+        User user = userRepository.findById(id).orElse(null);
 
         if (user == null) {
             return ApiResponse.fail("존재하지 않는 사용자입니다.");

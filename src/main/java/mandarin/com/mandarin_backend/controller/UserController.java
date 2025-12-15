@@ -108,11 +108,11 @@ public class UserController {
     }
 
     // 7. 유저 탈퇴 API
-    // DELETE /user/{userId}
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable String userId) {
+    // DELETE /user/delete/{id} (명세서: /users/delete/{id})
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
 
-        ApiResponse<Void> response = userService.deleteUser(userId);
+        ApiResponse<Void> response = userService.deleteUser(id);
 
         if (response.isSuccess()) {
             return ResponseEntity.ok(response); // 200 OK
