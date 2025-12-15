@@ -113,6 +113,10 @@ public class UserService {
     // 6. 패스워드 확인 기능 (회원정보 수정 전 본인 확인용)
     public ApiResponse<Boolean> checkPassword(Long userId, String password) {
 
+        if (userId == null || password == null) {
+            return ApiResponse.fail("userId와 password는 필수입니다.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElse(null);
 
@@ -121,7 +125,7 @@ public class UserService {
         }
 
         // 패스워드 일치 여부 확인
-        boolean isPasswordMatch = user.getPassword().equals(password);
+        boolean isPasswordMatch = password.equals(user.getPassword());
 
         if (isPasswordMatch) {
             return ApiResponse.success("패스워드가 일치합니다.", true);

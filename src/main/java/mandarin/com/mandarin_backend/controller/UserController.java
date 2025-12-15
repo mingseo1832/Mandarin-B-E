@@ -50,6 +50,12 @@ public class UserController {
     @PostMapping("/checkpw")
     public ResponseEntity<ApiResponse<Boolean>> checkPassword(@RequestBody CheckPasswordRequest request) {
 
+        // null 체크
+        if (request.getUserId() == null || request.getPassword() == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("userId와 password는 필수입니다."));
+        }
+
         ApiResponse<Boolean> response = userService.checkPassword(request.getUserId(), request.getPassword());
 
         if (response.isSuccess()) {
