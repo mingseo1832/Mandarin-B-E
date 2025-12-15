@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import mandarin.com.mandarin_backend.dto.ApiResponse;
 import mandarin.com.mandarin_backend.dto.CheckPasswordRequest;
-import mandarin.com.mandarin_backend.dto.LoginRequest;
 import mandarin.com.mandarin_backend.dto.LoveTypeRequestDto;
 import mandarin.com.mandarin_backend.dto.SignUpRequest;
 import mandarin.com.mandarin_backend.dto.UserResponseDto;
@@ -36,20 +35,7 @@ public class UserController {
         return ResponseEntity.badRequest().body(response);
     }
 
-    // 2. 로그인 API
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Long>> login(@RequestBody LoginRequest request) {
-
-        ApiResponse<Long> response = userService.login(request);
-
-        if (response.isSuccess()) {
-            return ResponseEntity.ok(response); // 200 OK
-        }
-
-        return ResponseEntity.badRequest().body(response); // 실패 시
-    }
-
-    // 3. 아이디 중복 확인 API
+    // 2. 아이디 중복 확인 API
     // GET /user/check-id?userId=test123
     @GetMapping("/check-id")
     public ResponseEntity<ApiResponse<Boolean>> checkId(@RequestParam String userId) {
