@@ -51,12 +51,12 @@ public class UserController {
     public ResponseEntity<ApiResponse<Boolean>> checkPassword(@RequestBody CheckPasswordRequest request) {
 
         // null 체크
-        if (request.getUserId() == null || request.getPassword() == null) {
+        if (request.getId() == null || request.getPassword() == null) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.fail("userId와 password는 필수입니다."));
         }
 
-        ApiResponse<Boolean> response = userService.checkPassword(request.getUserId(), request.getPassword());
+        ApiResponse<Boolean> response = userService.checkPassword(request.getId(), request.getPassword());
 
         if (response.isSuccess()) {
             return ResponseEntity.ok(response); // 200 OK
