@@ -113,7 +113,7 @@ public class UserController {
     @PutMapping("/lovetype")
     public ResponseEntity<ApiResponse<Void>> updateLoveType(@RequestBody LoveTypeRequestDto request) {
 
-        ApiResponse<Void> response = userService.updateLoveType(request.getUserId(), request.getLoveType());
+        ApiResponse<Void> response = userService.updateLoveType(request.getId(), request.getLoveType());
 
         if (response.isSuccess()) {
             return ResponseEntity.ok(response); // 200 OK

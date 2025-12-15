@@ -19,15 +19,14 @@ public class ReportController {
 
     /**
      * 사용자의 설문 결과 기반 Love Type 저장 API
-     * POST /report/love-type/{userId}
+     * POST /report/love-type/{id}
      */
-    @PostMapping("/love-type/{userId}")
+    @PostMapping("/love-type/{id}")
     public ResponseEntity<ApiResponse<Void>> saveLoveType(
-            @PathVariable String userId,
+            @PathVariable Long id,
             @RequestBody LoveTypeRequestDto request) {
 
-        ApiResponse<Void> response = userService.updateLoveType(userId, request.getLoveType());
-
+        ApiResponse<Void> response = userService.updateLoveType(id, request.getLoveType());
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
         }
