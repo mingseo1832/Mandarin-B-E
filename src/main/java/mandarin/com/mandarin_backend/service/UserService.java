@@ -19,7 +19,7 @@ public class UserService {
     private final UserRepository userRepository;
 
     // 1. 회원가입 기능
-    public ApiResponse<Void> signUp(SignUpRequest request) {
+    public ApiResponse<Long> signUp(SignUpRequest request) {
 
         // 아이디 중복 체크
         if (userRepository.existsByUserId(request.getUserId())) {
@@ -36,13 +36,13 @@ public class UserService {
                 .build();
 
         // DB 저장
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
 
-        return ApiResponse.success("회원가입 성공", null);
+        return ApiResponse.success("회원가입 성공", savedUser.getId());
     }
 
     // 2. 로그인 기능 + loveType 업데이트
-    public ApiResponse<Void> login(LoginRequest request) {
+    public ApiResponse<Long> login(LoginRequest request) {
 
         User user = userRepository.findByUserId(request.getUserId())
                 .orElse(null);
@@ -57,7 +57,7 @@ public class UserService {
             userRepository.save(user);
         }
 
-        return ApiResponse.success("로그인 성공", null);
+        return ApiResponse.success("로그인 성공", user.getId());
     }
 
     // 3. 아이디 중복 확인 기능
