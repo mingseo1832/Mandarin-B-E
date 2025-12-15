@@ -19,7 +19,7 @@ public class UserCharacter {
 
     // 기존 ManyToOne 유지 (캐릭터는 반드시 User에 속함)
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "id", nullable = false)
     private User user;
 
     @Column(nullable = false, length = 50)
@@ -42,7 +42,7 @@ public class UserCharacter {
      * - 0~15 : 러브타입 코드
      * - 16   : 미설정(default)
      */
-    @Column(name = "love_type", nullable = false)
+    @Column(name = "c_lovetype", nullable = false)
     @Builder.Default
     private Integer loveType = 16;
 
