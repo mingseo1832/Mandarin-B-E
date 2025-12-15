@@ -152,13 +152,8 @@ public class UserService {
         return ApiResponse.success("회원 정보 조회 성공", responseDto);
     }
 
-    // 8. 회원 정보 수정 기능 (본인 정보만 수정 가능)
-    public ApiResponse<UserResponseDto> updateUser(Long id, UserUpdateRequestDto request, Long loginUserId) {
-
-        // 본인만 수정 가능하도록 확인
-        if (!id.equals(loginUserId)) {
-            return ApiResponse.fail("본인의 정보만 수정할 수 있습니다.");
-        }
+    // 8. 회원 정보 수정 기능
+    public ApiResponse<UserResponseDto> updateUser(Long id, UserUpdateRequestDto request) {
 
         User user = userRepository.findById(id)
                 .orElse(null);
