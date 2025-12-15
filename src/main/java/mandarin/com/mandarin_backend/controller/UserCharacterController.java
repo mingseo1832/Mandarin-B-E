@@ -1,5 +1,6 @@
 package mandarin.com.mandarin_backend.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper; // [추가] JSON 변환 라이브러리
 import lombok.RequiredArgsConstructor;
 import mandarin.com.mandarin_backend.dto.ReportCharacterResponseDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterRequestDto;
@@ -8,13 +9,15 @@ import mandarin.com.mandarin_backend.exception.CharacterNotFoundException;
 import mandarin.com.mandarin_backend.exception.UserNotFoundException;
 import mandarin.com.mandarin_backend.service.ReportCharacterService;
 import mandarin.com.mandarin_backend.service.UserCharacterService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.MediaType;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,35 +28,29 @@ public class UserCharacterController {
     private final ReportCharacterService reportCharacterService;
 
     // ----------------- 캐릭터 다건 조회 -----------------
-    @GetMapping("/user/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-public ResponseEntity<?> getCharacters(@PathVariable Long id) {
-    try {
-        // 1. 서비스 호출
-        List<UserCharacterResponseDto> list = characterService.getCharactersByUserId(id);
+    // [수정] GET 요청에는 consumes = MediaType.MULTIPART_FORM_DATA_VALUE 가 필요 없습니다. 제거했습니다.
+    @GetMapping("/user/{id}") 
+    public ResponseEntity<?> getCharacters(@PathVariable Long id) {
+        try {
+            List<UserCharacterResponseDto> list = characterService.getCharactersByUserId(id);
 
-        // 2. 결과 맵 생성
-        Map<String, Object> result = new HashMap<>();
-        result.put("code", 200);
-        result.put("data", list);
+            Map<String, Object> result = new HashMap<>();
+            result.put("code", 200);
+            result.put("data", list);
 
-        // 3. 정상 반환
-        return ResponseEntity.ok(result);
+            return ResponseEntity.ok(result);
 
-    } catch (UserNotFoundException e) {
-        // 유저가 없을 때
-        return ResponseEntity.status(404).body(e.getMessage());
-        
-    } catch (Exception e) { 
-        // 🚨 중요: 여기서 나머지 모든 에러(Null ID 등)를 잡아서 메시지를 확인해야 합니다.
-        e.printStackTrace(); // 콘솔에 에러 원인 출력
-        return ResponseEntity.status(500).body("서버 에러 발생: " + e.getMessage());
+        } catch (UserNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("서버 에러 발생: " + e.getMessage());
+        }
     }
-}
 
     // ----------------- 캐릭터 단건 조회 -----------------
     @GetMapping("/{characterId}")
     public ResponseEntity<?> getCharacter(@PathVariable Long characterId) {
-
         try {
             UserCharacterResponseDto dto = characterService.getCharacter(characterId);
 
@@ -67,38 +64,55 @@ public ResponseEntity<?> getCharacters(@PathVariable Long id) {
         }
     }
 
-    // ----------------- 캐릭터 생성 -----------------
-    @PostMapping("/create")
+    // ----------------- 캐릭터 생성 (핵심 수정 부분) -----------------
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createCharacter(
-            @RequestPart("json") UserCharacterRequestDto dto,
+            @RequestPart("json") String jsonStr, // [수정 1] DTO 대신 String으로 받음 (415 해결)
             @RequestPart(value = "character_img", required = false) MultipartFile characterImg,
             @RequestPart(value = "full_dialogue", required = false) MultipartFile fullDialogue
     ) {
+        // [수정 2] ObjectMapper 생성
+        ObjectMapper objectMapper = new ObjectMapper();
+        UserCharacterRequestDto dto = null;
 
         try {
+            // [수정 3] 문자열(jsonStr)을 자바 객체(DTO)로 변환
+            dto = objectMapper.readValue(jsonStr, UserCharacterRequestDto.class);
+
+            // 서비스 호출
             characterService.createCharacter(dto, characterImg, fullDialogue);
 
             return ResponseEntity.ok(Map.of("code", 200));
 
-        } catch (UserNotFoundException | IOException e) {
+        } catch (IOException e) {
+            // JSON 파싱 실패 혹은 파일 에러
+            return error("데이터 형식 오류: " + e.getMessage());
+        } catch (UserNotFoundException e) {
             return error(e.getMessage());
         }
     }
 
-    // ----------------- 캐릭터 수정 -----------------
-    @PostMapping("/update/{characterId}")
+    // ----------------- 캐릭터 수정 (여기도 똑같이 수정) -----------------
+    @PostMapping(value = "/update/{characterId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateCharacter(
             @PathVariable Long characterId,
-            @RequestPart("json") UserCharacterRequestDto dto,
+            @RequestPart("json") String jsonStr, // [수정 1] String으로 변경
             @RequestPart(value = "character_img", required = false) MultipartFile characterImg,
             @RequestPart(value = "full_dialogue", required = false) MultipartFile fullDialogue
     ) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        UserCharacterRequestDto dto = null;
 
         try {
+            // [수정 2] 수동 변환
+            dto = objectMapper.readValue(jsonStr, UserCharacterRequestDto.class);
+
             characterService.updateCharacter(characterId, dto, characterImg, fullDialogue);
             return ResponseEntity.ok(Map.of("code", 200));
 
-        } catch (CharacterNotFoundException | IOException e) {
+        } catch (IOException e) {
+            return error("데이터 형식 오류: " + e.getMessage());
+        } catch (CharacterNotFoundException e) {
             return error(e.getMessage());
         }
     }
@@ -106,7 +120,6 @@ public ResponseEntity<?> getCharacters(@PathVariable Long id) {
     // ----------------- 캐릭터 삭제 -----------------
     @DeleteMapping("/delete/{characterId}")
     public ResponseEntity<?> deleteCharacter(@PathVariable Long characterId) {
-
         try {
             characterService.deleteCharacter(characterId);
             return ResponseEntity.ok(Map.of("code", 200));
@@ -119,10 +132,8 @@ public ResponseEntity<?> getCharacters(@PathVariable Long id) {
     // ----------------- 캐릭터 리포트 조회 -----------------
     @GetMapping("/report/{character_id}")
     public ResponseEntity<?> getCharacterReports(@PathVariable("character_id") Long characterId) {
-
         try {
-            List<ReportCharacterResponseDto> list =
-                    reportCharacterService.getReportsByCharacterId(characterId);
+            List<ReportCharacterResponseDto> list = reportCharacterService.getReportsByCharacterId(characterId);
 
             Map<String, Object> result = new HashMap<>();
             result.put("code", 200);
