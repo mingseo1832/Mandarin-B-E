@@ -30,34 +30,25 @@ public class UserCharacterService {
     private final UserCharacterRepository characterRepository;
     private final FileUtil fileUtil;
 
-    // ================================
-    // 1. 캐릭터 다건 조회 (GET /character/user/{id})
-    // ================================
+    // 1. 다건 조회 (기존 동일)
     public List<UserCharacterResponseDto> getCharactersByUserId(Long userId) {
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("회원 정보가 없습니다."));
-
         List<UserCharacter> characters = characterRepository.findByUser(user);
-
         return characters.stream()
                 .map(UserCharacterResponseDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
-    // ================================
-    // 2. 캐릭터 단건 조회 (GET /character/{characterId})
-    // ================================
+    // 2. 단건 조회 (기존 동일)
     public UserCharacterResponseDto getCharacter(Long characterId) {
-
         UserCharacter character = characterRepository.findById(characterId)
                 .orElseThrow(() -> new CharacterNotFoundException("캐릭터 정보가 없습니다."));
-
         return UserCharacterResponseDto.fromEntity(character);
     }
 
     // ================================
-    // 3. 캐릭터 생성 (POST /character/create)
+    // 3. 캐릭터 생성 (수정됨)
     // ================================
     @Transactional
     public void createCharacter(UserCharacterRequestDto dto,
@@ -67,8 +58,9 @@ public class UserCharacterService {
         User user = userRepository.findById(dto.getId())
                 .orElseThrow(() -> new UserNotFoundException("회원 정보가 없습니다."));
 
-        String characterImgPath = fileUtil.saveFile(characterImg);
-        String dialoguePath = fileUtil.saveFile(fullDialogueFile);
+        // [수정] 폴더 이름을 명시해서 저장합니다.
+        String characterImgPath = fileUtil.saveFile(characterImg, "character");
+        String dialoguePath = fileUtil.saveFile(fullDialogueFile, "dialogue");
 
         UserCharacter newChar = UserCharacter.builder()
                 .user(user)
@@ -85,12 +77,10 @@ public class UserCharacterService {
                 .build();
 
         characterRepository.save(newChar);
-
-        // TODO: Report_Character 테이블 생성 (AI 사용)
     }
 
     // ================================
-    // 4. 캐릭터 수정 (POST /character/update/{characterId})
+    // 4. 캐릭터 수정 (수정됨)
     // ================================
     @Transactional
     public void updateCharacter(Long characterId,
@@ -109,26 +99,21 @@ public class UserCharacterService {
         if (dto.getHistorySum() != null) character.setHistorySum(dto.getHistorySum());
         if (dto.getKakaoName() != null) character.setKakaoName(dto.getKakaoName());
 
-        // 새로운 파일 들어오면 변경
+        // [수정] 파일 변경 시 폴더 이름 명시
         if (characterImg != null && !characterImg.isEmpty()) {
             fileUtil.deleteFile(character.getCharacterImg());
-            character.setCharacterImg(fileUtil.saveFile(characterImg));
+            character.setCharacterImg(fileUtil.saveFile(characterImg, "character"));
         }
 
         if (fullDialogueFile != null && !fullDialogueFile.isEmpty()) {
             fileUtil.deleteFile(character.getFullDialogue());
-            character.setFullDialogue(fileUtil.saveFile(fullDialogueFile));
+            character.setFullDialogue(fileUtil.saveFile(fullDialogueFile, "dialogue"));
         }
-
-        // TODO: Report_Character 수정(AI)
     }
 
-    // ================================
-    // 5. 캐릭터 삭제 (DELETE /character/delete/{characterId})
-    // ================================
+    // 5. 삭제 (기존 동일)
     @Transactional
     public void deleteCharacter(Long characterId) {
-
         UserCharacter character = characterRepository.findById(characterId)
                 .orElseThrow(() -> new CharacterNotFoundException("캐릭터 정보가 없습니다."));
 
@@ -136,16 +121,11 @@ public class UserCharacterService {
         fileUtil.deleteFile(character.getFullDialogue());
 
         characterRepository.delete(character);
-
-        // TODO: Report_Character 삭제 처리
     }
 
-    // ================================
-    // 6. 히스토리 요약 (기존 기능 유지)
-    // ================================
+    // 6. 히스토리 요약 (기존 동일)
     @Transactional
     public UserCharacter summarizeAndSaveHistory(Long characterId, String history) {
-
         UserCharacter character = characterRepository.findById(characterId)
                 .orElseThrow(() -> new CharacterNotFoundException("캐릭터를 찾을 수 없습니다: " + characterId));
 
