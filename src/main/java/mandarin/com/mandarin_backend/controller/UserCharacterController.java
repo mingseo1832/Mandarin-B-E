@@ -11,6 +11,7 @@ import mandarin.com.mandarin_backend.service.UserCharacterService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.io.IOException;
 import java.util.*;
@@ -24,7 +25,7 @@ public class UserCharacterController {
     private final ReportCharacterService reportCharacterService;
 
     // ----------------- 캐릭터 다건 조회 -----------------
-    @GetMapping("/user/{id}")
+    @GetMapping("/user/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 public ResponseEntity<?> getCharacters(@PathVariable Long id) {
     try {
         // 1. 서비스 호출
