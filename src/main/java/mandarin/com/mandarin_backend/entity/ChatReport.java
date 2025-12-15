@@ -29,7 +29,7 @@ public class ChatReport {
      * FK → User
      */
     @ManyToOne
-    @JoinColumn(name = "id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     /**

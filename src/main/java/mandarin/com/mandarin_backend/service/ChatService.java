@@ -50,11 +50,11 @@ public class ChatService {
         // 3. 페르소나 JSON 파싱
         UserPersonaDto persona = parsePersonaFromJson(simulation.getCharacterPersona());
         
-        // 4. 사용자 메시지 저장 (sender: false = USER)
+        // 4. 사용자 메시지 저장 (sender: "user" = 사용자)
         LocalDateTime userMessageTime = LocalDateTime.now();
         SimulationMessage userMsg = SimulationMessage.builder()
                 .simulation(simulation)
-                .sender(false)  // false = USER
+                .sender("user")  // "user" = 사용자
                 .content(userMessage)
                 .timestamp(userMessageTime)
                 .build();
@@ -93,12 +93,12 @@ public class ChatService {
                 .bodyToMono(ChatResponseDto.class)
                 .block();
 
-        // 8. AI 응답 저장 (sender: true = AI)
+        // 8. AI 응답 저장 (sender: "assistant" = AI (캐릭터))
         if (response != null && response.getReply() != null) {
             LocalDateTime aiResponseTime = LocalDateTime.now();
             SimulationMessage aiMsg = SimulationMessage.builder()
                     .simulation(simulation)
-                    .sender(true)  // true = AI
+                    .sender("assistant")  // "assistant" = AI (캐릭터)
                     .content(response.getReply())
                     .timestamp(aiResponseTime)
                     .build();

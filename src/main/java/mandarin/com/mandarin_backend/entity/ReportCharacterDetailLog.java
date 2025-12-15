@@ -19,12 +19,12 @@ public class ReportCharacterDetailLog {
     private Long reportCharacterDetailLogId;  // PK
 
     /**
-     * sender:
-     * false → USER
-     * true  → CHARACTER
+     * sender: 메시지 발신자
+     * - "user" = 사용자
+     * - "character" = 캐릭터 (분석 대상)
      */
-    @Column(name = "sender", nullable = false)
-    private Boolean sender;
+    @Column(name = "sender", nullable = false, length = 20)
+    private String sender;
 
     @Column(name = "message_kakao", columnDefinition = "TEXT", nullable = false)
     private String messageKakao;

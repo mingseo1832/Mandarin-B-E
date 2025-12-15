@@ -24,11 +24,11 @@ public class SimulationMessage {
 
     /**
      * sender: 메시지 발신자
-     * - false = USER (실제 사용자)
-     * - true  = AI   (캐릭터)
+     * - "user" = 사용자
+     * - "assistant" = AI (캐릭터)
      */
-    @Column(name = "sender", nullable = false)
-    private Boolean sender;
+    @Column(name = "sender", nullable = false, length = 20)
+    private String sender;
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;

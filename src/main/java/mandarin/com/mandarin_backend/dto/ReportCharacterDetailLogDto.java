@@ -20,10 +20,9 @@ public class ReportCharacterDetailLogDto {
         if (entity == null) {
             throw new IllegalArgumentException("ReportCharacterDetailLog entity cannot be null");
         }
-        // sender: false → USER, true → CHARACTER
-        String senderStr = (entity.getSender() != null && entity.getSender()) ? "CHARACTER" : "USER";
+        // sender: "user" = 사용자, "assistant" = AI (캐릭터)
         return ReportCharacterDetailLogDto.builder()
-                .sender(senderStr)
+                .sender(entity.getSender())
                 .content(entity.getMessageKakao())
                 .timestamp(entity.getTimestamp())
                 .build();

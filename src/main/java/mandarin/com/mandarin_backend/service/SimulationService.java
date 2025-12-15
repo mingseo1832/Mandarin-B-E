@@ -101,10 +101,10 @@ public class SimulationService {
 
             LocalDateTime now = LocalDateTime.now();
 
-            // 2. 사용자 메시지 저장 (sender: false = USER)
+            // 2. 사용자 메시지 저장
             SimulationMessage userMessage = SimulationMessage.builder()
                     .simulation(simulation)
-                    .sender(request.getSender())  // false = 사용자
+                    .sender(request.getSender())  // "user" 또는 "assistant"
                     .content(request.getContent())
                     .timestamp(now)
                     .build();
@@ -120,7 +120,7 @@ public class SimulationService {
 
             List<ChatLogDto> history = messageHistory.stream()
                     .map(msg -> ChatLogDto.builder()
-                            .role(msg.getSender() ? "assistant" : "user")
+                            .role("assistant".equals(msg.getSender()) ? "assistant" : "user")
                             .content(msg.getContent())
                             .build())
                     .collect(Collectors.toList());
@@ -158,7 +158,7 @@ public class SimulationService {
 
                 SimulationMessage aiMessage = SimulationMessage.builder()
                         .simulation(simulation)
-                        .sender(true)  // true = AI
+                        .sender("assistant")  // "assistant" = AI (캐릭터)
                         .content(aiResponse.getReply())
                         .timestamp(aiTimestamp)
                         .build();
@@ -170,7 +170,7 @@ public class SimulationService {
 
                 // 8. 응답 반환
                 SimulationMessageResponseDto responseDto = SimulationMessageResponseDto.builder()
-                        .sender(true)
+                        .sender("assistant")  // "assistant" = AI (캐릭터)
                         .content(aiResponse.getReply())
                         .build();
 

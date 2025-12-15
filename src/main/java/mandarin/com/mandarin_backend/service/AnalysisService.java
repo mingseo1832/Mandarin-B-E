@@ -353,12 +353,12 @@ public class AnalysisService {
             if (trimmedLine.isEmpty()) continue;
             
             // sender 결정: 이름이 포함되어 있으면 해당 사람, 아니면 문맥 기반 추정
-            boolean isUser = determineSender(trimmedLine, userName, targetName);
+            String sender = determineSender(trimmedLine, userName, targetName);
             String message = extractMessage(trimmedLine, userName, targetName);
-            
+
             ReportCharacterDetailLog detailLog = ReportCharacterDetailLog.builder()
                     .reportCharacter(reportCharacter)
-                    .sender(isUser)  // false = USER, true = CHARACTER
+                    .sender(sender)  // "user" 또는 "character"
                     .messageKakao(message)
                     .timestamp(baseTime.plusSeconds(order))
                     .build();
@@ -374,7 +374,7 @@ public class AnalysisService {
                 // 기본적으로 상대방(CHARACTER)의 반응으로 저장
                 ReportCharacterDetailLog detailLog = ReportCharacterDetailLog.builder()
                         .reportCharacter(reportCharacter)
-                        .sender(true)  // CHARACTER (분석 대상)
+                        .sender("character")  // CHARACTER (분석 대상)
                         .messageKakao(message)
                         .timestamp(baseTime.plusSeconds(order))
                         .build();
@@ -395,25 +395,25 @@ public class AnalysisService {
      * @param targetName 상대방 이름
      * @return true = CHARACTER(상대방), false = USER(사용자)
      */
-    private boolean determineSender(String line, String userName, String targetName) {
+    private String determineSender(String line, String userName, String targetName) {
         // "이름:" 또는 "이름 :" 형식 확인
         if (line.startsWith(userName + ":") || line.startsWith(userName + " :")) {
-            return false;  // USER
+            return "user";  // USER
         }
         if (line.startsWith(targetName + ":") || line.startsWith(targetName + " :")) {
-            return true;   // CHARACTER
+            return "character";   // CHARACTER
         }
         
         // 이름이 포함된 경우
         if (line.contains(userName)) {
-            return false;  // USER
+            return "user";  // USER
         }
         if (line.contains(targetName)) {
-            return true;   // CHARACTER
+            return "character";   // CHARACTER
         }
         
         // 기본값: CHARACTER (분석 대상의 반응이므로)
-        return true;
+        return "character";
     }
 
     /**
