@@ -15,7 +15,7 @@ public class SimulationMessageRequestDto {
     @JsonProperty("simulation_id")
     private Long simulationId;
 
-    private Boolean sender;  // false = 사용자, true = AI
+    private String sender;  // "user" = 사용자, "assistant" = AI (캐릭터)
 
     private String content;
 }

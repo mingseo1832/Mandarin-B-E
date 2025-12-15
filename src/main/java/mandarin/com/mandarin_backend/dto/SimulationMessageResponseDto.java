@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SimulationMessageResponseDto {
 
-    private Boolean sender;  // true = AI
+    private String sender;  // "user" = 사용자, "assistant" = AI (캐릭터)
 
     private String content;
 }
