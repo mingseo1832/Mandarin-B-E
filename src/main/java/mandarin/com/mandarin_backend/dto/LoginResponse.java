@@ -8,5 +8,6 @@ import lombok.Getter;
 public class LoginResponse {
     private boolean success;
     private String message;
+    private Long id;           // 유저 기본키 (PK)
     private int loveType;
 }

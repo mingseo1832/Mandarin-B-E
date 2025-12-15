@@ -23,9 +23,9 @@ public class UserController {
 
     // 1. 회원가입 API
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<Void>> signUp(@RequestBody SignUpRequest request) {
+    public ResponseEntity<ApiResponse<Long>> signUp(@RequestBody SignUpRequest request) {
 
-        ApiResponse<Void> response = userService.signUp(request);
+        ApiResponse<Long> response = userService.signUp(request);
 
         // 성공 시 201 CREATED
         if (response.isSuccess()) {
@@ -38,9 +38,9 @@ public class UserController {
 
     // 2. 로그인 API
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<Long>> login(@RequestBody LoginRequest request) {
 
-        ApiResponse<Void> response = userService.login(request);
+        ApiResponse<Long> response = userService.login(request);
 
         if (response.isSuccess()) {
             return ResponseEntity.ok(response); // 200 OK
