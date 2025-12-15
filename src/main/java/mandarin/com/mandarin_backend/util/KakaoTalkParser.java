@@ -267,13 +267,30 @@ public class KakaoTalkParser {
 
     /**
      * iOS 버전 파싱: 2025. 10. 23. 오전 11:44, 안도현 : 메시지
+     * 날짜 라인: 2025년 10월 23일 목요일
      */
     private void parseIos() {
         String[] lines = rawText.split("\n");
+        LocalDate currentDate = null;
 
         for (String rawLine : lines) {
             String line = rawLine.trim();
 
+            // 날짜 라인 체크 (예: "2025년 10월 23일 목요일")
+            Matcher dateMatcher = IOS_DATE_PATTERN.matcher(line);
+            if (dateMatcher.matches()) {
+                try {
+                    int year = Integer.parseInt(dateMatcher.group(1));
+                    int month = Integer.parseInt(dateMatcher.group(2));
+                    int day = Integer.parseInt(dateMatcher.group(3));
+                    currentDate = LocalDate.of(year, month, day);
+                    continue;
+                } catch (Exception e) {
+                    // 날짜 파싱 실패 시 무시
+                }
+            }
+
+            // 메시지 파싱
             Matcher msgMatcher = IOS_MESSAGE_PATTERN.matcher(line);
             if (msgMatcher.matches()) {
                 try {
@@ -288,8 +305,13 @@ public class KakaoTalkParser {
 
                     int hour24 = convertAmPmHour(ampm, hour);
                     LocalDate date = LocalDate.of(year, month, day);
+                    
+                    // 날짜 라인이 있으면 그것을 우선 사용, 없으면 메시지의 날짜 사용
+                    if (currentDate != null) {
+                        date = currentDate;
+                    }
+                    
                     String timeStr = formatTimeStr(hour24, minute);
-
                     addMessage(date, sender, timeStr, content);
                 } catch (Exception e) {
                     // 파싱 실패 시 무시
