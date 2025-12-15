@@ -34,6 +34,9 @@ jobs:
 
       - name: Copy Jar to deploy folder
         run: cp ./target/${{ env.ARTIFACT_NAME }} ./deploy/
+        
+      - name: Copy Python code to deploy folder
+        run: cp -r ./python ./deploy/
 
       - name: Make zip file
         run: zip -r mandarin.zip deploy/
