@@ -51,8 +51,8 @@ public class PersonaController {
     public ResponseEntity<Map<String, Object>> analyze(@RequestBody AnalyzeRequestDto request) {
 
         // 필수 파라미터 검증
-        if (request.getId() == null || request.getId().isEmpty()) {
-            throw new IllegalArgumentException("userId는 필수입니다.");
+        if (request.getId() == null) {
+            throw new IllegalArgumentException("id는 필수입니다.");
         }
         if (request.getCharacterId() == null) {
             throw new IllegalArgumentException("characterId는 필수입니다.");
@@ -95,7 +95,7 @@ public class PersonaController {
 
         // 페르소나 추출 및 시뮬레이션 생성
         AnalysisService.AnalysisResult result = analysisService.analyzeAndCreateSimulation(
-            request.getUserId(),
+            request.getid(),
             request.getCharacterId(),
             targetDate,
             request.getBufferDays(),
