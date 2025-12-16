@@ -274,13 +274,10 @@ public class KakaoTalkParseService {
         // 1. JSON 역직렬화
         ParsedDialogueDto dto = parseJsonToDto(json);
         
-        // 2. 날짜순으로 정렬된 메시지 리스트 생성 (최신순)
+        // 2. 원본 순서대로 메시지 리스트 생성(오래된 날짜 -> 최신 날짜)
         List<KakaoTalkMessageDto> allMessages = new ArrayList<>();
-        List<String> sortedDates = new ArrayList<>(dto.getDailyChats().keySet());
-        Collections.sort(sortedDates, Collections.reverseOrder()); // 최신순 정렬
-        
-        for (String dateKey : sortedDates) {
-            allMessages.addAll(dto.getDailyChats().get(dateKey));
+        for (List<KakaoTalkMessageDto> messages : dto.getDailyChats().values()) {
+            allMessages.addAll(messages);
         }
         
         // 3. 텍스트로 변환 (최신 메시지부터)
