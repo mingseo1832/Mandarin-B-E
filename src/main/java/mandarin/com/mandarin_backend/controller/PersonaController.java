@@ -95,7 +95,7 @@ public class PersonaController {
 
         // 페르소나 추출 및 시뮬레이션 생성
         AnalysisService.AnalysisResult result = analysisService.analyzeAndCreateSimulation(
-            request.getid(),
+            request.getId(),
             request.getCharacterId(),
             targetDate,
             request.getBufferDays(),
