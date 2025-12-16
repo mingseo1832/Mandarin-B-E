@@ -21,10 +21,16 @@ import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
 import mandarin.com.mandarin_backend.repository.UserRepository;
 import mandarin.com.mandarin_backend.util.KakaoTalkParser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -43,6 +49,9 @@ public class AnalysisService {
     private final ReportCharacterDetailLogRepository reportCharacterDetailLogRepository;
     private final KakaoTalkParseService kakaoTalkParseService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 
     /**
      * 페르소나 추출 및 시뮬레이션 생성
@@ -72,16 +81,22 @@ public class AnalysisService {
             SimulationPurpose purpose,
             SimulationCategory category) {
         
-        // 1. DB에서 캐릭터 및 fullDialogue(JSON) 조회
+        // 1. DB에서 캐릭터 및 fullDialogue(파일 경로) 조회
         UserCharacter character = userCharacterRepository.findById(characterId)
                 .orElseThrow(() -> new IllegalArgumentException("캐릭터를 찾을 수 없습니다: " + characterId));
         
-        String dialogueJson = character.getFullDialogue();
-        if (dialogueJson == null || dialogueJson.isEmpty()) {
-            throw new IllegalArgumentException("저장된 대화 내용이 없습니다.");
+        String dialoguePath = character.getFullDialogue();
+        if (dialoguePath == null || dialoguePath.isEmpty()) {
+            throw new IllegalArgumentException("저장된 대화 파일 경로가 없습니다.");
         }
 
-        // 2. JSON에서 참여자 목록 조회하여 상대방 찾기 (kakaoName 제외)
+        // 2. 파일 경로에서 대화 JSON 파일 읽기
+        String dialogueJson = readDialogueFromFile(dialoguePath);
+        if (dialogueJson == null || dialogueJson.isEmpty()) {
+            throw new IllegalArgumentException("대화 파일을 읽을 수 없습니다: " + dialoguePath);
+        }
+
+        // 3. JSON에서 참여자 목록 조회하여 상대방 찾기 (kakaoName 제외)
         ParsedDialogueDto dialogueDto = kakaoTalkParseService.parseJsonToDto(dialogueJson);
         List<String> participants = dialogueDto.getParticipants();
         
@@ -92,7 +107,7 @@ public class AnalysisService {
                 .orElseThrow(() -> new IllegalArgumentException(
                     "1:1 대화에서 상대방을 찾을 수 없습니다. 참여자: " + participants));
 
-        // 3. JSON에서 직접 날짜 기준 필터링 (재파싱 없음)
+        // 4. JSON에서 직접 날짜 기준 필터링 (재파싱 없음)
         int effectiveBufferDays = bufferDays != null ? bufferDays : 7;
         KakaoTalkParseService.PreprocessResult preprocessed = 
             kakaoTalkParseService.filterFromJson(
@@ -111,10 +126,10 @@ public class AnalysisService {
             + ", 버퍼: " + effectiveBufferDays + "일"
             + ", 상대방메시지수: " + preprocessed.getTargetMessageCount());
 
-        // 4. Python 서버로 AI 분석 요청 (상대방 페르소나 추출)
+        // 5. Python 서버로 AI 분석 요청 (상대방 페르소나 추출)
         UserPersonaDto persona = analyzePersonaWithText(preprocessed.getText(), targetName);
 
-        // 5. Simulation 생성 및 저장
+        // 6. Simulation 생성 및 저장
         String personaJson;
         try {
             personaJson = objectMapper.writeValueAsString(persona);
@@ -138,7 +153,7 @@ public class AnalysisService {
 
         System.out.println("[Analyze] 시뮬레이션 저장 완료 - ID: " + savedSimulation.getSimulationId());
 
-        // 6. ReportCharacter 및 ReportCharacterDetailLog 저장 (negative_triggers 기반)
+        // 7. ReportCharacter 및 ReportCharacterDetailLog 저장 (negative_triggers 기반)
         if (persona.getReactionPatterns() != null && 
             persona.getReactionPatterns().getNegativeTriggers() != null &&
             !persona.getReactionPatterns().getNegativeTriggers().isEmpty()) {
@@ -173,6 +188,35 @@ public class AnalysisService {
         private String targetName;
         private int fewShotContextLength;
         private int targetMessageCount;
+    }
+
+    /**
+     * fullDialogue에 저장된 파일 경로에서 대화 JSON 파일 읽기
+     * 
+     * @param dialoguePath DB에 저장된 파일 경로 (uploads/ 이후 경로)
+     * @return 파일에서 읽은 대화 JSON 문자열
+     */
+    private String readDialogueFromFile(String dialoguePath) {
+        try {
+            // uploadDir과 dialoguePath를 조합하여 전체 경로 생성
+            Path filePath = Paths.get(uploadDir, dialoguePath);
+            
+            System.out.println("[AnalysisService] 대화 파일 읽기 - 경로: " + filePath.toAbsolutePath());
+            
+            // 파일 존재 여부 확인
+            if (!Files.exists(filePath)) {
+                throw new IllegalArgumentException("대화 파일이 존재하지 않습니다: " + filePath.toAbsolutePath());
+            }
+            
+            // 파일 내용 읽기 (UTF-8 인코딩)
+            String content = Files.readString(filePath, StandardCharsets.UTF_8);
+            
+            System.out.println("[AnalysisService] 대화 파일 읽기 완료 - 파일 크기: " + content.length() + "자");
+            
+            return content;
+        } catch (IOException e) {
+            throw new RuntimeException("대화 파일 읽기 실패: " + dialoguePath + ", 오류: " + e.getMessage(), e);
+        }
     }
 
     /**
