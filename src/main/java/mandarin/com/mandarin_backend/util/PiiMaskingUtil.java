@@ -75,45 +75,6 @@ public class PiiMaskingUtil {
     );
 
     /**
-     * 최소한의 민감 정보만 마스킹 (분석 정확도 유지)
-     * 대상: 주민번호, 카드번호, 비밀번호
-     * 용도: AI 분석 전 전처리 (말투 패턴에 영향 없는 정보만 마스킹)
-     */
-    public static String maskSensitiveOnly(String content) {
-        if (content == null || content.isEmpty()) {
-            return content;
-        }
-
-        String masked = content;
-
-        // 1. 비밀번호 마스킹
-        Matcher pwMatcher = PASSWORD_PATTERN.matcher(masked);
-        StringBuilder pwBuilder = new StringBuilder();
-        while (pwMatcher.find()) {
-            String keyword = pwMatcher.group(1);
-            pwMatcher.appendReplacement(pwBuilder, Matcher.quoteReplacement(keyword + " ****"));
-        }
-        pwMatcher.appendTail(pwBuilder);
-        masked = pwBuilder.toString();
-
-        // 2. 주민등록번호 마스킹
-        masked = RRN_PATTERN.matcher(masked).replaceAll("******-*******");
-
-        // 3. 카드번호 마스킹
-        Matcher cardMatcher = CARD_PATTERN.matcher(masked);
-        StringBuilder cardBuilder = new StringBuilder();
-        while (cardMatcher.find()) {
-            String card = cardMatcher.group();
-            String replacement = card.replaceAll("\\d", "*");
-            cardMatcher.appendReplacement(cardBuilder, Matcher.quoteReplacement(replacement));
-        }
-        cardMatcher.appendTail(cardBuilder);
-        masked = cardBuilder.toString();
-
-        return masked;
-    }
-
-    /**
      * 전체 개인정보 마스킹 (저장/외부 노출 시 사용)
      * 처리 순서: 비밀번호 -> 주민번호 -> 카드번호 -> 전화번호 -> 이메일 -> 계좌번호 -> URL -> 주소
      */
@@ -126,76 +87,44 @@ public class PiiMaskingUtil {
 
         // -----------------------------------------------------------
         // 1. 비밀번호 마스킹 (키워드 기반이라 가장 먼저 처리 권장)
-        // 예: "비번 1234" -> "비번 ****"
+        // 예: "비번 1234" -> "비번 [비밀번호 필터링 됨]"
         // -----------------------------------------------------------
         Matcher pwMatcher = PASSWORD_PATTERN.matcher(masked);
         StringBuilder pwBuilder = new StringBuilder();
         while (pwMatcher.find()) {
             String keyword = pwMatcher.group(1);
-            pwMatcher.appendReplacement(pwBuilder, Matcher.quoteReplacement(keyword + " ****"));
+            pwMatcher.appendReplacement(pwBuilder, Matcher.quoteReplacement(keyword + " [비밀번호 필터링 됨]"));
         }
         pwMatcher.appendTail(pwBuilder);
         masked = pwBuilder.toString();
 
         // -----------------------------------------------------------
         // 2. 주민등록번호 마스킹
-        // 예: "900101-1234567" -> "******-*******"
+        // 예: "900101-1234567" -> "[주민등록번호 필터링 됨]"
         // -----------------------------------------------------------
-        masked = RRN_PATTERN.matcher(masked).replaceAll("******-*******");
+        masked = RRN_PATTERN.matcher(masked).replaceAll("[주민등록번호 필터링 됨]");
 
         // -----------------------------------------------------------
         // 3. 카드번호 마스킹 (계좌번호보다 먼저 처리)
-        // 예: "1234-5678-9012-3456" -> "****-****-****-****"
+        // 예: "1234-5678-9012-3456" -> "[카드번호 필터링 됨]"
         // -----------------------------------------------------------
-        Matcher cardMatcher = CARD_PATTERN.matcher(masked);
-        StringBuilder cardBuilder = new StringBuilder();
-        while (cardMatcher.find()) {
-            String card = cardMatcher.group();
-            String replacement = card.replaceAll("\\d", "*");
-            cardMatcher.appendReplacement(cardBuilder, Matcher.quoteReplacement(replacement));
-        }
-        cardMatcher.appendTail(cardBuilder);
-        masked = cardBuilder.toString();
+        masked = CARD_PATTERN.matcher(masked).replaceAll("[카드번호 필터링 됨]");
 
         // -----------------------------------------------------------
         // 4. 전화번호 마스킹
-        // 예: "010-1234-5678" -> "010-****-****"
+        // 예: "010-1234-5678" -> "[전화번호 필터링 됨]"
         // -----------------------------------------------------------
-        Matcher phoneMatcher = PHONE_PATTERN.matcher(masked);
-        StringBuilder phoneBuilder = new StringBuilder();
-        while (phoneMatcher.find()) {
-            String areaCode = phoneMatcher.group(1);  // 010, 02 등
-            String replacement = areaCode + "-****-****";
-            phoneMatcher.appendReplacement(phoneBuilder, Matcher.quoteReplacement(replacement));
-        }
-        phoneMatcher.appendTail(phoneBuilder);
-        masked = phoneBuilder.toString();
+        masked = PHONE_PATTERN.matcher(masked).replaceAll("[전화번호 필터링 됨]");
 
         // -----------------------------------------------------------
         // 5. 이메일 마스킹
-        // 예: "test@naver.com" -> "te**@****.***"
+        // 예: "test@naver.com" -> "[이메일 필터링 됨]"
         // -----------------------------------------------------------
-        Matcher emailMatcher = EMAIL_PATTERN.matcher(masked);
-        StringBuilder emailBuilder = new StringBuilder();
-        while (emailMatcher.find()) {
-            String email = emailMatcher.group();
-            int atIndex = email.indexOf("@");
-            
-            String replacement;
-            if (atIndex > 2) {
-                String prefix = email.substring(0, 2);
-                replacement = prefix + "**@****.***";
-            } else {
-                replacement = "***@****.***";
-            }
-            emailMatcher.appendReplacement(emailBuilder, Matcher.quoteReplacement(replacement));
-        }
-        emailMatcher.appendTail(emailBuilder);
-        masked = emailBuilder.toString();
+        masked = EMAIL_PATTERN.matcher(masked).replaceAll("[이메일 필터링 됨]");
 
         // -----------------------------------------------------------
         // 6. 계좌번호 마스킹
-        // 예: "110-123-456789" -> "***-***-******"
+        // 예: "110-123-456789" -> "[계좌번호 필터링 됨]"
         // 주의: 하이픈이 포함된 11자리 이상만 처리 (오탐 방지)
         // -----------------------------------------------------------
         Matcher accountMatcher = ACCOUNT_PATTERN.matcher(masked);
@@ -204,9 +133,8 @@ public class PiiMaskingUtil {
             String account = accountMatcher.group();
             
             // 오탐 방지: 이미 마스킹된 부분(*포함)은 건너뛰기
-            if (!account.contains("*") && account.length() >= 11) {
-                String replacement = account.replaceAll("\\d", "*");
-                accountMatcher.appendReplacement(accountBuilder, Matcher.quoteReplacement(replacement));
+            if (!account.contains("[") && !account.contains("필터링") && account.length() >= 11) {
+                accountMatcher.appendReplacement(accountBuilder, Matcher.quoteReplacement("[계좌번호 필터링 됨]"));
             } else {
                 // 조건에 맞지 않으면 원본 유지
                 accountMatcher.appendReplacement(accountBuilder, Matcher.quoteReplacement(account));
@@ -217,27 +145,27 @@ public class PiiMaskingUtil {
 
         // -----------------------------------------------------------
         // 7. URL 마스킹 (위치정보, 개인정보 포함 가능)
-        // 예: "https://map.naver.com/..." -> "[URL 마스킹됨]"
+        // 예: "https://map.naver.com/..." -> "[URL 필터링 됨]"
         // -----------------------------------------------------------
-        masked = URL_PATTERN.matcher(masked).replaceAll("[URL 마스킹됨]");
+        masked = URL_PATTERN.matcher(masked).replaceAll("[URL 필터링 됨]");
 
         // -----------------------------------------------------------
         // 8. 도로명주소 마스킹
-        // 예: "서울 강남구 테헤란로 123" -> "[주소 마스킹됨]"
+        // 예: "서울 강남구 테헤란로 123" -> "[주소 필터링 됨]"
         // -----------------------------------------------------------
-        masked = ROAD_ADDRESS_PATTERN.matcher(masked).replaceAll("[주소 마스킹됨]");
+        masked = ROAD_ADDRESS_PATTERN.matcher(masked).replaceAll("[주소 필터링 됨]");
 
         // -----------------------------------------------------------
         // 9. 지번주소 마스킹
-        // 예: "역삼동 123-45" -> "[주소 마스킹됨]"
+        // 예: "역삼동 123-45" -> "[주소 필터링 됨]"
         // -----------------------------------------------------------
-        masked = JIBUN_ADDRESS_PATTERN.matcher(masked).replaceAll("[주소 마스킹됨]");
+        masked = JIBUN_ADDRESS_PATTERN.matcher(masked).replaceAll("[주소 필터링 됨]");
 
         // -----------------------------------------------------------
         // 10. 건물 상세주소 마스킹
-        // 예: "OO빌딩 3층 301호" -> "[상세주소 마스킹됨]"
+        // 예: "OO빌딩 3층 301호" -> "[상세주소 필터링 됨]"
         // -----------------------------------------------------------
-        masked = BUILDING_DETAIL_PATTERN.matcher(masked).replaceAll("[상세주소 마스킹됨]");
+        masked = BUILDING_DETAIL_PATTERN.matcher(masked).replaceAll("[상세주소 필터링 됨]");
 
         return masked;
     }

@@ -10,6 +10,7 @@ import mandarin.com.mandarin_backend.dto.UserPersonaDto;
 import mandarin.com.mandarin_backend.entity.ReportCharacter;
 import mandarin.com.mandarin_backend.entity.ReportCharacterDetailLog;
 import mandarin.com.mandarin_backend.entity.Simulation;
+import mandarin.com.mandarin_backend.entity.User;
 import mandarin.com.mandarin_backend.entity.UserCharacter;
 import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
 import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
@@ -17,6 +18,7 @@ import mandarin.com.mandarin_backend.repository.ReportCharacterDetailLogReposito
 import mandarin.com.mandarin_backend.repository.ReportCharacterRepository;
 import mandarin.com.mandarin_backend.repository.SimulationRepository;
 import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
+import mandarin.com.mandarin_backend.repository.UserRepository;
 import mandarin.com.mandarin_backend.util.KakaoTalkParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class AnalysisService {
 
     private final WebClient webClient;
     private final UserCharacterRepository userCharacterRepository;
+    private final UserRepository userRepository;
     private final SimulationRepository simulationRepository;
     private final ReportCharacterRepository reportCharacterRepository;
     private final ReportCharacterDetailLogRepository reportCharacterDetailLogRepository;
@@ -61,6 +64,7 @@ public class AnalysisService {
      */
     @Transactional
     public AnalysisResult analyzeAndCreateSimulation(
+            String userId,
             Long characterId, 
             LocalDate targetDate, 
             Integer bufferDays,
@@ -92,7 +96,8 @@ public class AnalysisService {
         int effectiveBufferDays = bufferDays != null ? bufferDays : 7;
         KakaoTalkParseService.PreprocessResult preprocessed = 
             kakaoTalkParseService.filterFromJson(
-                dialogueJson, targetName, targetDate, effectiveBufferDays, 50000);
+                dialogueJson, targetName, targetDate, effectiveBufferDays, 
+                KakaoTalkParseService.getDefaultMaxChars());
         
         if (!preprocessed.isTargetFound()) {
             throw new IllegalArgumentException(
@@ -117,7 +122,10 @@ public class AnalysisService {
             throw new RuntimeException("페르소나 JSON 변환 실패: " + e.getMessage(), e);
         }
 
+        User user = userRepository.findByUserId(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+
         Simulation simulation = Simulation.builder()
+                .user(user)
                 .character(character)
                 .simulationName(simulationName)
                 .purpose(purpose)
