@@ -15,9 +15,9 @@ import lombok.NoArgsConstructor;
 public class HistorySumRequestDto {
     
     /**
-     * 캐릭터 ID (UserCharacter PK)
+     * 캐릭터 이름 (프론트엔드에서 전달)
      */
-    private Long characterId;
+    private String characterName;
     
     /**
      * 요약할 히스토리 내용

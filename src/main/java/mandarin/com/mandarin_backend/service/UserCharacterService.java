@@ -123,7 +123,9 @@ public class UserCharacterService {
         characterRepository.delete(character);
     }
 
-    // 6. 히스토리 요약 (기존 동일)
+    // ================================
+    // 6. 히스토리 요약 (기존 동일 - DB 저장 포함)
+    // ================================
     @Transactional
     public UserCharacter summarizeAndSaveHistory(Long characterId, String history) {
         UserCharacter character = characterRepository.findById(characterId)
@@ -146,6 +148,29 @@ public class UserCharacterService {
 
         character.setHistorySum(response.getSummary());
         return characterRepository.save(character);
+    }
+
+    // ================================
+    // 7. 히스토리 요약만 수행 (DB 저장 없음, 프론트엔드로 반환용)
+    // ================================
+    public String summarizeHistory(String history, String characterName) {
+        
+        Map<String, String> body = new HashMap<>();
+        body.put("history", history);
+        body.put("character_name", characterName);
+
+        HistorySumResponseDto response = webClient.post()
+                .uri("/summarize-history")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(HistorySumResponseDto.class)
+                .block();
+
+        if (response == null || response.getSummary() == null) {
+            throw new RuntimeException("히스토리 요약 실패.");
+        }
+
+        return response.getSummary();
     }
 
     public UserCharacter getCharacterById(Long characterId) {
