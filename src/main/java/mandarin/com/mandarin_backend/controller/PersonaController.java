@@ -51,7 +51,7 @@ public class PersonaController {
     public ResponseEntity<Map<String, Object>> analyze(@RequestBody AnalyzeRequestDto request) {
 
         // 필수 파라미터 검증
-        if (request.getUserId() == null || request.getUserId().isEmpty()) {
+        if (request.getId() == null || request.getId().isEmpty()) {
             throw new IllegalArgumentException("userId는 필수입니다.");
         }
         if (request.getCharacterId() == null) {
