@@ -5,7 +5,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Report_Character_DetailLog")
+@Table(name = "report_character_detaillog")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,7 +15,7 @@ public class ReportCharacterDetailLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "Report_Character_DetailLog_id")
+    @Column(name = "report_character_detaillog_id")
     private Long reportCharacterDetailLogId;  // PK
 
     /**
@@ -36,6 +36,6 @@ public class ReportCharacterDetailLog {
      * FK → ReportCharacter
      */
     @ManyToOne
-    @JoinColumn(name = "Report_Character_id", nullable = false)
+    @JoinColumn(name = "report_character_id", nullable = false)
     private ReportCharacter reportCharacter;
 }

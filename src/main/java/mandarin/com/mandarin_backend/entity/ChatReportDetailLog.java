@@ -5,7 +5,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Chat_Report_DetailLog")
+@Table(name = "chat_report_detaillog")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,7 +15,7 @@ public class ChatReportDetailLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "Chat_Report_DetailLog_id")
+    @Column(name = "chat_report_detaillog_id")
     private Long chatReportDetailLogId;
 
     @Column(name = "chat_report_id")
