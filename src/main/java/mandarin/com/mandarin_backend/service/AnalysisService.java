@@ -23,6 +23,7 @@ import mandarin.com.mandarin_backend.util.KakaoTalkParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -138,18 +140,7 @@ public class AnalysisService {
 
         System.out.println("[Analyze] 시뮬레이션 저장 완료 - ID: " + savedSimulation.getSimulationId());
 
-        // 6. ReportCharacter 및 ReportCharacterDetailLog 저장 (negative_triggers 기반)
-        if (persona.getReactionPatterns() != null && 
-            persona.getReactionPatterns().getNegativeTriggers() != null &&
-            !persona.getReactionPatterns().getNegativeTriggers().isEmpty()) {
-            
-            saveReportCharacterFromNegativeTriggers(
-                character, 
-                persona.getReactionPatterns().getNegativeTriggers(),
-                kakaoName,
-                targetName
-            );
-        }
+        // 6. ReportCharacter 생성 로직 제거 (UserCharacter 생성 시점으로 이동)
 
         return AnalysisResult.builder()
                 .simulation(savedSimulation)
@@ -449,5 +440,81 @@ public class AnalysisService {
         
         // 접두사 없으면 원본 반환
         return line;
+    }
+
+    /**
+     * UserCharacter 생성 시 fullDialogue에서 부정적 반응 트리거 추출 및 ReportCharacter 저장
+     * 
+     * @param character 저장된 UserCharacter
+     * @param kakaoName 사용자 이름 (카카오톡 본인)
+     * @param targetName 상대방 이름 (분석 대상)
+     */
+    @Transactional
+    public void createReportCharacterFromFullDialogue(
+            UserCharacter character,
+            String kakaoName,
+            String targetName) {
+        
+        String dialogueJson = character.getFullDialogue();
+        if (dialogueJson == null || dialogueJson.isEmpty()) {
+            System.out.println("[ReportCharacter] 대화 내용이 없어 리포트를 생성하지 않습니다.");
+            return;
+        }
+        
+        try {
+            // 1. JSON을 텍스트로 변환 (가장 최근부터 maxChars만큼)
+            int maxChars = KakaoTalkParseService.getDefaultMaxChars();
+            String dialogueText = kakaoTalkParseService.convertJsonToText(dialogueJson, maxChars);
+            
+            // 2. Python 서버로 부정적 반응 트리거 추출 요청
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("text_content", dialogueText);
+            requestBody.put("user_name", kakaoName);
+            requestBody.put("target_name", targetName);
+            requestBody.put("max_chars", maxChars);
+            
+            Map<String, Object> response = webClient.post()
+                    .uri("/extract-negative-triggers")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+            
+            if (response == null || !response.containsKey("negative_triggers")) {
+                System.out.println("[ReportCharacter] 부정적 반응 트리거를 찾을 수 없습니다.");
+                return;
+            }
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> negativeTriggersList = 
+                (List<Map<String, Object>>) response.get("negative_triggers");
+            
+            if (negativeTriggersList == null || negativeTriggersList.isEmpty()) {
+                System.out.println("[ReportCharacter] 부정적 반응 트리거가 없습니다.");
+                return;
+            }
+            
+            // 3. DTO로 변환
+            List<ReactionTriggerDto> negativeTriggers = negativeTriggersList.stream()
+                .map(triggerMap -> ReactionTriggerDto.builder()
+                    .trigger((String) triggerMap.get("trigger"))
+                    .reaction((String) triggerMap.get("reaction"))
+                    .example((String) triggerMap.get("example"))
+                    .build())
+                .collect(Collectors.toList());
+            
+            // 4. ReportCharacter 및 ReportCharacterDetailLog 저장
+            saveReportCharacterFromNegativeTriggers(
+                character,
+                negativeTriggers,
+                kakaoName,
+                targetName
+            );
+            
+        } catch (Exception e) {
+            System.err.println("[ReportCharacter] 리포트 생성 실패: " + e.getMessage());
+            e.printStackTrace();
+            // 리포트 생성 실패해도 UserCharacter 저장은 성공으로 처리
+        }
     }
 }

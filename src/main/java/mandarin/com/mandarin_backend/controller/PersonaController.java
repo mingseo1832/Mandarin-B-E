@@ -243,7 +243,20 @@ public class PersonaController {
             // 8. DB 저장
             UserCharacter savedCharacter = userCharacterRepository.save(character);
 
-            // 9. 응답 반환
+            // 9. 캐릭터 리포트 생성 (fullDialogue에서 부정적 반응 트리거 추출)
+            try {
+                analysisService.createReportCharacterFromFullDialogue(
+                    savedCharacter,
+                    kakaoName,
+                    targetName
+                );
+                System.out.println("[Upload] 캐릭터 리포트 생성 완료 - 캐릭터ID: " + savedCharacter.getCharacterId());
+            } catch (Exception e) {
+                System.err.println("[Upload] 캐릭터 리포트 생성 실패: " + e.getMessage());
+                // 리포트 생성 실패해도 업로드는 성공으로 처리
+            }
+            
+            // 10. 응답 반환
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "characterId", savedCharacter.getCharacterId(),

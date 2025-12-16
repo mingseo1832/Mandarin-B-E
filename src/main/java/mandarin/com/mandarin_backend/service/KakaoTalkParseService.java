@@ -13,6 +13,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -259,6 +261,47 @@ public class KakaoTalkParseService {
             .targetMessageCount(targetMessageCount)
             .filteredCharCount(resultText.length())
             .build();
+    }
+
+    /**
+     * JSON 문자열을 텍스트로 변환 (가장 최근부터 maxChars만큼)
+     * 
+     * @param json DB에서 가져온 JSON 문자열
+     * @param maxChars 최대 문자 수 제한
+     * @return 변환된 대화 텍스트 (가장 최근부터 maxChars만큼)
+     */
+    public String convertJsonToText(String json, int maxChars) {
+        // 1. JSON 역직렬화
+        ParsedDialogueDto dto = parseJsonToDto(json);
+        
+        // 2. 날짜순으로 정렬된 메시지 리스트 생성 (최신순)
+        List<KakaoTalkMessageDto> allMessages = new ArrayList<>();
+        List<String> sortedDates = new ArrayList<>(dto.getDailyChats().keySet());
+        Collections.sort(sortedDates, Collections.reverseOrder()); // 최신순 정렬
+        
+        for (String dateKey : sortedDates) {
+            allMessages.addAll(dto.getDailyChats().get(dateKey));
+        }
+        
+        // 3. 텍스트로 변환 (최신 메시지부터)
+        StringBuilder resultText = new StringBuilder();
+        for (KakaoTalkMessageDto msg : allMessages) {
+            if (msg.getSender() != null) {
+                resultText.append(String.format("[%s] [%s] %s\n",
+                    msg.getSender(), msg.getTime(), msg.getContent()));
+            } else {
+                resultText.append(msg.getContent()).append("\n");
+            }
+        }
+        
+        String text = resultText.toString();
+        
+        // 4. 가장 최근부터 maxChars만큼만 추출
+        if (text.length() > maxChars) {
+            text = text.substring(text.length() - maxChars);
+        }
+        
+        return text;
     }
 
     /**
