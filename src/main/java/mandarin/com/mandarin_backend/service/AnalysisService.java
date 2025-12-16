@@ -64,7 +64,7 @@ public class AnalysisService {
      */
     @Transactional
     public AnalysisResult analyzeAndCreateSimulation(
-            String userId,
+            Long id,
             Long characterId, 
             LocalDate targetDate, 
             Integer bufferDays,
