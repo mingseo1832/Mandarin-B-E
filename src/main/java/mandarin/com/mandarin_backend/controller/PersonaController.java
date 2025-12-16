@@ -260,40 +260,39 @@ public class PersonaController {
     }
 
     /**
-     * 히스토리 요약 및 저장
+     * 히스토리 요약 (DB 저장 없이 프론트엔드로 반환만)
      * POST /api/persona/history-summary
      * 
-     * 사용자가 입력한 히스토리를 AI가 요약하여 UserCharacter의 historySum 필드에 저장
+     * 사용자가 입력한 히스토리를 AI가 요약하여 프론트엔드로 반환
+     * 클라이언트가 캐릭터 생성 시 이 값을 historySum으로 전달
      * 
-     * @param request characterId, history
-     * @return 저장된 캐릭터 정보 및 요약 결과
+     * @param request characterName, history
+     * @return 요약된 히스토리
      */
     @PostMapping("/history-summary")
     public ResponseEntity<Map<String, Object>> summarizeHistory(@RequestBody HistorySumRequestDto request) {
         
         // 필수 파라미터 검증
-        if (request.getCharacterId() == null) {
-            throw new IllegalArgumentException("characterId는 필수입니다.");
+        if (request.getCharacterName() == null || request.getCharacterName().trim().isEmpty()) {
+            throw new IllegalArgumentException("characterName은 필수입니다.");
         }
         if (request.getHistory() == null || request.getHistory().trim().isEmpty()) {
             throw new IllegalArgumentException("history는 필수입니다.");
         }
         
-        System.out.println("[HistorySummary] 히스토리 요약 요청 - 캐릭터ID: " + request.getCharacterId()
+        System.out.println("[HistorySummary] 히스토리 요약 요청 - 캐릭터이름: " + request.getCharacterName()
             + ", 히스토리 길이: " + request.getHistory().length() + "자");
         
-        // 히스토리 요약 및 저장
-        UserCharacter savedCharacter = userCharacterService.summarizeAndSaveHistory(
-            request.getCharacterId(),
-            request.getHistory()
+        // 히스토리 요약만 수행 (DB 저장 없음)
+        String summary = userCharacterService.summarizeHistory(
+            request.getHistory(),
+            request.getCharacterName()
         );
         
-        // 응답 반환
+        // 응답 반환 (DB 저장 없이 요약 결과만 반환)
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "characterId", savedCharacter.getCharacterId(),
-            "characterName", savedCharacter.getCharacterName(),
-            "historySum", savedCharacter.getHistorySum()
+            "historySum", summary
         ));
     }
 }
