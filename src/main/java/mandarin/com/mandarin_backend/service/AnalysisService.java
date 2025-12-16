@@ -122,7 +122,7 @@ public class AnalysisService {
             throw new RuntimeException("페르소나 JSON 변환 실패: " + e.getMessage(), e);
         }
 
-        User user = userRepository.findByUserId(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+        User user = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + id));
 
         Simulation simulation = Simulation.builder()
                 .user(user)
