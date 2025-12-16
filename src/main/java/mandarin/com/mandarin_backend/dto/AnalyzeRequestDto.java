@@ -10,6 +10,11 @@ import lombok.Data;
  */
 @Data
 public class AnalyzeRequestDto {
+
+    // ===== 사용자 정보 =====
+    
+    // 사용자 ID
+    private String userId;
     
     // ===== 캐릭터 정보 =====
     

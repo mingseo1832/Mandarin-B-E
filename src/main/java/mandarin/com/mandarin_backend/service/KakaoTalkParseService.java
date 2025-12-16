@@ -26,6 +26,9 @@ public class KakaoTalkParseService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** 최대 문자 수 제한 기본값 */
+    private static final int DEFAULT_MAX_CHARS = 150000;
+
     /**
      * 카카오톡 파일을 파싱하여 기본 정보 반환 (참여자 목록, 날짜 범위 등)
      */
@@ -107,6 +110,7 @@ public class KakaoTalkParseService {
 
     /**
      * JSON에서 특정 날짜 기준으로 데이터 필터링 (재파싱 없음)
+     * DB에 저장된 JSON 문자열에서 targetDate, bufferDays를 기준으로 필터링
      * 
      * @param json DB에서 가져온 JSON 문자열
      * @param targetName 분석 대상 인물 이름
@@ -204,114 +208,15 @@ public class KakaoTalkParseService {
             .filteredCharCount(text.length())
             .build();
     }
-
-    /**
-     * 카카오톡 대화를 파싱하고 기간 필터링하여 텍스트로 반환
-     * 
-     * @param textContent 카카오톡 대화 텍스트
-     * @param targetName 분석 대상 인물 이름 (존재 여부 확인용)
-     * @param periodDays 필터링할 일수 (기존 방식)
-     * @param startDate 시작일 (새 방식)
-     * @param endDate 종료일 (새 방식)
-     * @param bufferDays 시작일 이전 버퍼 일수
-     * @param maxChars 최대 문자 수 제한
-     * @return 전처리된 텍스트
-     */
-    public PreprocessResult preprocessKakaoText(
-            String textContent,
-            String targetName,
-            int periodDays,
-            LocalDate startDate,
-            LocalDate endDate,
-            int bufferDays,
-            int maxChars) {
-        
-        KakaoTalkParser parser = new KakaoTalkParser(textContent);
-        ParsedChatDataDto stats = parser.getStatistics();
-
-        // 1. 기간 필터링
-        Map<LocalDate, List<KakaoTalkMessageDto>> periodData;
-        if (startDate != null && endDate != null) {
-            periodData = parser.filterByPeriod(0, null, startDate, endDate, bufferDays);
-        } else {
-            periodData = parser.filterByPeriod(periodDays, null, null, null, 0);
-        }
-
-        // 2. 타겟 인물이 해당 기간에 존재하는지 확인
-        Map<LocalDate, List<KakaoTalkMessageDto>> targetMessages = 
-            parser.filterBySender(targetName, periodData);
-        
-        boolean targetFound = !targetMessages.isEmpty();
-        int targetMessageCount = targetMessages.values().stream()
-            .mapToInt(List::size)
-            .sum();
-
-        // 3. 전체 대화 텍스트 변환
-        String resultText = parser.toText(periodData);
-
-        // 4. 최대 길이 제한 (최신 대화 우선)
-        if (resultText.length() > maxChars) {
-            resultText = resultText.substring(resultText.length() - maxChars);
-        }
-
-        return PreprocessResult.builder()
-            .text(resultText)
-            .stats(stats)
-            .targetFound(targetFound)
-            .targetMessageCount(targetMessageCount)
-            .filteredCharCount(resultText.length())
-            .build();
-    }
-
-    /**
-     * 전처리 + 민감 정보만 마스킹 (AI 분석용)
-     */
-    public String preprocessAndMaskSensitive(
-            String textContent,
-            String targetName,
-            int periodDays,
-            LocalDate startDate,
-            LocalDate endDate,
-            int bufferDays) {
-        
-        PreprocessResult result = preprocessKakaoText(
-            textContent, targetName, periodDays, startDate, endDate, bufferDays, 50000);
-        
-        // 민감 정보만 마스킹 (주민번호, 카드번호, 비밀번호)
-        return PiiMaskingUtil.maskSensitiveOnly(result.getText());
-    }
-
-    /**
-     * 전처리 + 전체 PII 마스킹 (저장용)
-     */
-    public String preprocessAndMaskAll(
-            String textContent,
-            String targetName,
-            int periodDays,
-            LocalDate startDate,
-            LocalDate endDate,
-            int bufferDays) {
-        
-        PreprocessResult result = preprocessKakaoText(
-            textContent, targetName, periodDays, startDate, endDate, bufferDays, 50000);
-        
-        // 전체 PII 마스킹
-        return PiiMaskingUtil.mask(result.getText());
-    }
-
-    /**
-     * 원본 텍스트 전체 PII 마스킹 (DB 저장용)
-     */
-    public String maskForStorage(String textContent) {
-        return PiiMaskingUtil.mask(textContent);
-    }
+    
 
     /**
      * 특정 날짜 기준으로 bufferDays 이전까지의 대화 필터링 (페르소나 분석용)
+     * 원본 텍스트를 파싱하여 targetDate, bufferDays 기준으로 필터링
      * 
      * @param textContent 카카오톡 대화 텍스트 (DB에서 가져온 fullDialogue)
      * @param targetName 분석 대상 인물 이름
-     * @param targetDate 기준 날짜
+     * @param targetDate 기준 날짜 (null이면 가장 최신 날짜)
      * @param bufferDays 기준 날짜 이전 버퍼 일수
      * @param maxChars 최대 문자 수 제한
      * @return 필터링된 대화 텍스트와 통계 정보
@@ -369,6 +274,10 @@ public class KakaoTalkParseService {
         private boolean targetFound;
         private int targetMessageCount;
         private int filteredCharCount;
+    }
+
+    public static int getDefaultMaxChars() {
+        return DEFAULT_MAX_CHARS;
     }
 }
 

@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api/persona")
@@ -49,6 +51,9 @@ public class PersonaController {
     public ResponseEntity<Map<String, Object>> analyze(@RequestBody AnalyzeRequestDto request) {
 
         // 필수 파라미터 검증
+        if (request.getUserId() == null || request.getUserId().isEmpty()) {
+            throw new IllegalArgumentException("userId는 필수입니다.");
+        }
         if (request.getCharacterId() == null) {
             throw new IllegalArgumentException("characterId는 필수입니다.");
         }
@@ -90,6 +95,7 @@ public class PersonaController {
 
         // 페르소나 추출 및 시뮬레이션 생성
         AnalysisService.AnalysisResult result = analysisService.analyzeAndCreateSimulation(
+            request.getUserId(),
             request.getCharacterId(),
             targetDate,
             request.getBufferDays(),
@@ -253,6 +259,51 @@ public class PersonaController {
                     "end", parsedData.getEndDate() != null ? parsedData.getEndDate().toString() : ""
                 )
             ));
+            
+        } catch (IOException e) {
+            throw new RuntimeException("파일 읽기 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 카카오톡 파일 업로드 및 마스킹 처리 (DB 저장 없이 파일로 반환)
+     * POST /api/persona/upload-and-mask
+     * 
+     * 파일을 파싱하고 PII 마스킹 후 JSON 파일로 반환
+     * 프론트엔드에서 이 파일을 받아서 엔티티 생성 API에 전달
+     * 
+     * @param file 카카오톡 대화 내보내기 텍스트 파일 (.txt)
+     * @return 마스킹된 JSON 파일
+     */
+    @PostMapping("/upload-and-mask")
+    public ResponseEntity<byte[]> uploadAndMask(
+            @RequestParam("file") MultipartFile file) {
+        
+        System.out.println("[UploadAndMask] 파일 업로드 - 파일명: " + file.getOriginalFilename());
+
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("파일이 비어있습니다.");
+        }
+
+        try {
+            // 1. 파일 내용 읽기
+            String rawTextContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+
+            // 2. 파싱 + PII 마스킹 + JSON 변환
+            String dialogueJson = kakaoTalkParseService.parseAndConvertToJson(rawTextContent);
+
+            // 3. JSON을 바이트 배열로 변환
+            byte[] jsonBytes = dialogueJson.getBytes(StandardCharsets.UTF_8);
+
+            // 4. 파일 다운로드 응답 설정
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setContentDispositionFormData("attachment", "masked_dialogue.json");
+            headers.setContentLength(jsonBytes.length);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(jsonBytes);
             
         } catch (IOException e) {
             throw new RuntimeException("파일 읽기 실패: " + e.getMessage());

@@ -22,6 +22,10 @@ public class Simulation {
     private Long simulationId;  // PK
 
     @ManyToOne
+    @JoinColumn(name = "id", nullable = false)
+    private User user;  // 어떤 사용자의 시뮬레이션인지
+
+    @ManyToOne
     @JoinColumn(name = "character_id", nullable = false)
     private UserCharacter character;  // 어떤 캐릭터와의 시뮬레이션인지
 
