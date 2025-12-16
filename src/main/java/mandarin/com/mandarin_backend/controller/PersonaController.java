@@ -266,17 +266,17 @@ public class PersonaController {
     }
 
     /**
-     * 카카오톡 파일 업로드 및 마스킹 처리 (DB 저장 없이 파일로 반환)
+     * 카카오톡 파일 업로드 및 마스킹 처리 (DB 저장 없이 JSON 반환)
      * POST /api/persona/upload-and-mask
      * 
-     * 파일을 파싱하고 PII 마스킹 후 JSON 파일로 반환
-     * 프론트엔드에서 이 파일을 받아서 엔티티 생성 API에 전달
+     * 파일을 파싱하고 PII 마스킹 후 JSON 문자열로 반환
+     * 프론트엔드에서 이 JSON을 받아서 엔티티 생성 API에 전달
      * 
      * @param file 카카오톡 대화 내보내기 텍스트 파일 (.txt)
-     * @return 마스킹된 JSON 파일
+     * @return 마스킹된 JSON 문자열
      */
     @PostMapping("/upload-and-mask")
-    public ResponseEntity<byte[]> uploadAndMask(
+    public ResponseEntity<Map<String, Object>> uploadAndMask(
             @RequestParam("file") MultipartFile file) {
         
         System.out.println("[UploadAndMask] 파일 업로드 - 파일명: " + file.getOriginalFilename());
@@ -292,18 +292,11 @@ public class PersonaController {
             // 2. 파싱 + PII 마스킹 + JSON 변환
             String dialogueJson = kakaoTalkParseService.parseAndConvertToJson(rawTextContent);
 
-            // 3. JSON을 바이트 배열로 변환
-            byte[] jsonBytes = dialogueJson.getBytes(StandardCharsets.UTF_8);
-
-            // 4. 파일 다운로드 응답 설정
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setContentDispositionFormData("attachment", "masked_dialogue.json");
-            headers.setContentLength(jsonBytes.length);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(jsonBytes);
+            // 3. JSON 응답 반환
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "dialogueJson", dialogueJson  // 마스킹된 JSON 문자열
+            ));
             
         } catch (IOException e) {
             throw new RuntimeException("파일 읽기 실패: " + e.getMessage());
