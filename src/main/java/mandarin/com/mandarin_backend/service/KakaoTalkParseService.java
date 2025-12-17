@@ -9,7 +9,6 @@ import mandarin.com.mandarin_backend.util.KakaoTalkParser;
 import mandarin.com.mandarin_backend.util.PiiMaskingUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

@@ -61,7 +61,7 @@ public class ChatReportService {
     // ----------------------------
     // 4. Chat Report 생성 (POST)
     // ----------------------------
-    public Integer createChatReport(ChatReportCreateRequestDto request) {
+    public ChatReportResponseDto createChatReport(ChatReportCreateRequestDto request) {
 
         // 1. Simulation 조회
         Simulation simulation = simulationRepository.findById(request.getSimulation_id())
@@ -125,6 +125,6 @@ public class ChatReportService {
             chatReportAvgRepository.save(avgRow);
         }
 
-        return report.getChatReportId();
+        return ChatReportResponseDto.fromEntity(report);
     }
 }

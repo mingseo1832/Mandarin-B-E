@@ -80,8 +80,9 @@ public class ChatReportController {
         Map<String, Object> res = new HashMap<>();
 
         try {
-            chatReportService.createChatReport(request);
+            ChatReportResponseDto reportDto = chatReportService.createChatReport(request);
             res.put("code", 200);
+            res.put("data", reportDto);
             return ResponseEntity.ok(res);
 
         } catch (Exception e) {
