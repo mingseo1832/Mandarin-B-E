@@ -59,41 +59,53 @@ public class KakaoTalkParseService {
      * @return 파싱된 데이터의 JSON 문자열
      */
     public String parseAndConvertToJson(String textContent) {
-        // [추가] ObjectMapper 준비
+        // 1. ObjectMapper 초기화 (없으면 생성)
         if (objectMapper == null) {
-            objectMapper = new ObjectMapper(); 
-            objectMapper.registerModule(new JavaTimeModule()); // 날짜 처리를 위해 필요할 수 있음
+            objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new JavaTimeModule());
         }
     
-        // ★ 핵심 변경: 입력값이 JSON인지 확인
+        // 2. 입력값이 JSON인지 확인 (기존 로직 유지)
         if (textContent.trim().startsWith("{")) {
-            // CASE 1: 이미 JSON 형식이면 -> 파싱 없이 바로 DTO로 변환 후 리턴
+            System.out.println("JSON 형식이 맞습니다.");
             try {
-                // 유효성 검사 차원에서 한번 읽었다가 다시 씀 (혹은 그냥 return textContent; 해도 됨)
                 ParsedDialogueDto dto = objectMapper.readValue(textContent, ParsedDialogueDto.class);
                 return objectMapper.writeValueAsString(dto);
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("입력된 JSON 형식이 DTO와 맞지 않습니다: " + e.getMessage(), e);
+                throw new RuntimeException("JSON 변환 오류: " + e.getMessage(), e);
             }
         }
     
-        // CASE 2: 카톡 원본 텍스트이면 -> 기존 로직 실행 (파싱 -> 마스킹 -> JSON)
+        // =========================================================
+        // [문제 구간 수정] CASE 2: 텍스트 파싱
+        // =========================================================
         
-        // 1. 파싱
+        // 1. 파서 실행
         KakaoTalkParser parser = new KakaoTalkParser(textContent);
-        ParsedChatDataDto stats = parser.getStatistics();
+        ParsedChatDataDto stats = parser.getStatistics(); // 통계 정보만 가져옴
+    
+        // ★ [디버깅 로그] 파싱이 제대로 됐는지 확인 (콘솔창 확인용)
+        // parser.getDailyChats() 메서드가 없다면 KakaoTalkParser 클래스에 추가해야 합니다!
+        Map<LocalDate, List<KakaoTalkMessageDto>> rawChats = parser.getDailyChats(); 
         
+        if (rawChats == null || rawChats.isEmpty()) {
+            System.err.println("🚨 경고: 파싱된 대화가 하나도 없습니다! 텍스트 형식을 확인하세요.");
+            // 파싱된게 없으면 빈 JSON 리턴하지 말고 로그 확인
+        } else {
+            System.out.println("✅ 파싱 성공: " + rawChats.size() + "일치 대화 발견");
+        }
+    
         // 2. 메시지 내용 PII 마스킹
         Map<String, List<KakaoTalkMessageDto>> maskedDailyChats = new LinkedHashMap<>();
         
-        // stats.getDailyChats()는 Map<LocalDate, ...> 형태
-        for (Map.Entry<LocalDate, List<KakaoTalkMessageDto>> entry : stats.getDailyChats().entrySet()) {
-            String dateKey = entry.getKey().toString(); // "2025-01-15"
+        // [수정 포인트] stats.getDailyChats() -> rawChats (파서에서 직접 가져온 데이터 사용)
+        for (Map.Entry<LocalDate, List<KakaoTalkMessageDto>> entry : rawChats.entrySet()) {
+            String dateKey = entry.getKey().toString(); 
             List<KakaoTalkMessageDto> maskedMessages = entry.getValue().stream()
                 .map(msg -> KakaoTalkMessageDto.builder()
                     .sender(msg.getSender())
                     .time(msg.getTime())
-                    .content(PiiMaskingUtil.mask(msg.getContent())) // 마스킹 적용
+                    .content(PiiMaskingUtil.mask(msg.getContent()))
                     .build())
                 .collect(Collectors.toList());
             maskedDailyChats.put(dateKey, maskedMessages);
@@ -103,14 +115,14 @@ public class KakaoTalkParseService {
         ParsedDialogueDto dto = ParsedDialogueDto.builder()
             .formatType(stats.getFormatType())
             .participants(stats.getParticipants())
-            .dailyChats(maskedDailyChats)
+            .dailyChats(maskedDailyChats) // 마스킹된 데이터 넣기
             .startDate(stats.getStartDate() != null ? stats.getStartDate().toString() : null)
             .endDate(stats.getEndDate() != null ? stats.getEndDate().toString() : null)
             .totalMessages(stats.getTotalMessages())
             .totalDays(stats.getTotalDays())
             .build();
         
-        // 4. JSON 직렬화
+        // 4. JSON 변환
         try {
             return objectMapper.writeValueAsString(dto);
         } catch (JsonProcessingException e) {
