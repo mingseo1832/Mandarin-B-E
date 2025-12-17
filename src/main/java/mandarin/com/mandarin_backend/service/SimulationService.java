@@ -96,6 +96,7 @@ public class SimulationService {
                     .map(message -> SimulationMessageResponseDto.builder()
                             .sender(message.getSender())
                             .content(message.getContent())
+                            .timestamp(message.getTimestamp())
                             .build())
                     .collect(Collectors.toList());
 
