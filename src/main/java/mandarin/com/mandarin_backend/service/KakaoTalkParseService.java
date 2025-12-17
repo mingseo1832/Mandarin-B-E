@@ -9,12 +9,12 @@ import mandarin.com.mandarin_backend.util.KakaoTalkParser;
 import mandarin.com.mandarin_backend.util.PiiMaskingUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @Service
 public class KakaoTalkParseService {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private ObjectMapper objectMapper;
 
     /** 최대 문자 수 제한 기본값 */
     private static final int DEFAULT_MAX_CHARS = 150000;
@@ -59,19 +59,41 @@ public class KakaoTalkParseService {
      * @return 파싱된 데이터의 JSON 문자열
      */
     public String parseAndConvertToJson(String textContent) {
+        // [추가] ObjectMapper 준비
+        if (objectMapper == null) {
+            objectMapper = new ObjectMapper(); 
+            objectMapper.registerModule(new JavaTimeModule()); // 날짜 처리를 위해 필요할 수 있음
+        }
+    
+        // ★ 핵심 변경: 입력값이 JSON인지 확인
+        if (textContent.trim().startsWith("{")) {
+            // CASE 1: 이미 JSON 형식이면 -> 파싱 없이 바로 DTO로 변환 후 리턴
+            try {
+                // 유효성 검사 차원에서 한번 읽었다가 다시 씀 (혹은 그냥 return textContent; 해도 됨)
+                ParsedDialogueDto dto = objectMapper.readValue(textContent, ParsedDialogueDto.class);
+                return objectMapper.writeValueAsString(dto);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("입력된 JSON 형식이 DTO와 맞지 않습니다: " + e.getMessage(), e);
+            }
+        }
+    
+        // CASE 2: 카톡 원본 텍스트이면 -> 기존 로직 실행 (파싱 -> 마스킹 -> JSON)
+        
         // 1. 파싱
         KakaoTalkParser parser = new KakaoTalkParser(textContent);
         ParsedChatDataDto stats = parser.getStatistics();
         
         // 2. 메시지 내용 PII 마스킹
         Map<String, List<KakaoTalkMessageDto>> maskedDailyChats = new LinkedHashMap<>();
+        
+        // stats.getDailyChats()는 Map<LocalDate, ...> 형태
         for (Map.Entry<LocalDate, List<KakaoTalkMessageDto>> entry : stats.getDailyChats().entrySet()) {
-            String dateKey = entry.getKey().toString(); // "2025-01-15" 형식
+            String dateKey = entry.getKey().toString(); // "2025-01-15"
             List<KakaoTalkMessageDto> maskedMessages = entry.getValue().stream()
                 .map(msg -> KakaoTalkMessageDto.builder()
                     .sender(msg.getSender())
                     .time(msg.getTime())
-                    .content(PiiMaskingUtil.mask(msg.getContent()))
+                    .content(PiiMaskingUtil.mask(msg.getContent())) // 마스킹 적용
                     .build())
                 .collect(Collectors.toList());
             maskedDailyChats.put(dateKey, maskedMessages);
