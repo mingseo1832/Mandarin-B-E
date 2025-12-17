@@ -29,7 +29,7 @@ public class ChatReportAvg {
      * FK → User
      */
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "id", nullable = false)
     private User user;
 
     /**

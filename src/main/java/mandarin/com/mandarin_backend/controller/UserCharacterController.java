@@ -113,7 +113,8 @@ public class UserCharacterController {
                         analysisService.createReportCharacterFromFullDialogue(
                             savedCharacter,
                             kakaoName,
-                            targetName
+                            targetName,
+                            rawTextContent
                         );
                         System.out.println("[Create] 캐릭터 리포트 생성 완료 - 캐릭터ID: " + savedCharacter.getCharacterId());
                     } else {

@@ -22,7 +22,7 @@ public class Simulation {
     private Long simulationId;  // PK
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "id", nullable = false)
     private User user;  // 어떤 사용자의 시뮬레이션인지
 
     @ManyToOne

@@ -497,28 +497,49 @@ public class AnalysisService {
     public void createReportCharacterFromFullDialogue(
         UserCharacter character,
         String kakaoName,
-        String targetName) {
-    
-    // 1. DB에서 가져온 건 '파일 경로'입니다. (변수명 변경: dialogueJson -> filePath)
-    String filePath = character.getFullDialogue();
-    
-    if (filePath == null || filePath.isEmpty()) {
-        System.out.println("[ReportCharacter] 대화 파일 경로가 없어 리포트를 생성하지 않습니다.");
+        String targetName,
+        String directContent // [수정 1] 내용을 직접 받습니다!
+    ) {
+        
+    // [삭제] 파일 경로 가져오기 & 파일 읽기 로직 전부 삭제 ❌
+    /* String filePath = character.getFullDialogue();
+    Path path = Paths.get(filePath);
+    String jsonContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+    */
+
+    // [확인] 내용이 없으면 중단
+    if (directContent == null || directContent.isEmpty()) {
+        System.out.println("[ReportCharacter] 전달받은 대화 내용이 없습니다.");
         return;
     }
     
     try {
-        // ★★★ [수정 핵심] 파일 경로를 이용해 실제 파일 내용을 읽어옵니다. ★★★
-        Path path = Paths.get(filePath);
-        String jsonContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
-
-        // 2. JSON을 텍스트로 변환 (이제 jsonContent는 진짜 JSON입니다)
+        // 1. JSON을 텍스트로 변환
+        // [수정 2] 파일에서 읽은 것 대신, 인자로 받은 directContent를 바로 사용!
         int maxChars = KakaoTalkParseService.getDefaultMaxChars();
         
-        // 수정: filePath가 아니라 읽어온 jsonContent를 넘겨줍니다.
-        String dialogueText = kakaoTalkParseService.convertJsonToText(jsonContent, maxChars);
+        // directContent가 이미 JSON 형식이든 텍스트 형식이든
+        // kakaoTalkParseService.convertJsonToText()나 parseAndConvertToJson() 로직에 따라 처리됨
+        // 만약 directContent가 "Raw Text"라면 이 메서드가 아니라, 바로 로직을 수행해야 할 수도 있습니다.
+        // 하지만 앞서 Controller 로직을 보면 rawTextContent는 '카톡 원본 텍스트'입니다.
         
-        // 3. Python 서버로 부정적 반응 트리거 추출 요청
+        // ★ 중요: Controller에서 넘겨주는게 '카톡 원본 텍스트'라면 
+        // 굳이 convertJsonToText를 호출할 필요가 없습니다. (이미 텍스트니까요)
+        // 바로 마스킹/분석 로직으로 넘어가거나, 필요한 전처리만 하세요.
+        
+        // 만약 여기서 JSON 변환이 꼭 필요하다면:
+        // String jsonStr = kakaoTalkParseService.parseAndConvertToJson(directContent);
+        // String dialogueText = kakaoTalkParseService.convertJsonToText(jsonStr, maxChars);
+        
+        // 일단 기존 흐름대로 '텍스트'를 가지고 분석을 요청한다고 가정합니다.
+        String dialogueText = directContent; 
+        
+        // 만약 directContent가 너무 길다면 자르기 (JSON 변환 로직이 있다면 거기서 처리됨)
+        if (dialogueText.length() > maxChars) {
+            dialogueText = dialogueText.substring(dialogueText.length() - maxChars);
+        }
+
+        // 2. Python 서버 요청 (이하 동일)
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("text_content", dialogueText);
         requestBody.put("user_name", kakaoName);

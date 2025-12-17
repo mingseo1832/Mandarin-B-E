@@ -169,112 +169,113 @@ public class PersonaController {
      * @param relationType 관계 타입 코드값
      * @return 저장된 캐릭터 정보
      */
-    @PostMapping("/upload")
-    public ResponseEntity<Map<String, Object>> uploadAndSave(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("userId") String userId,
-            @RequestParam("kakaoName") String kakaoName,
-            @RequestParam("characterName") String characterName,
-            @RequestParam(value = "characterAge", defaultValue = "0") int characterAge,
-            @RequestParam(value = "relationType", defaultValue = "0") int relationType) {
+    // 사용하지 않으므로 비활성화
+    // @PostMapping("/upload")
+    // public ResponseEntity<Map<String, Object>> uploadAndSave(
+    //         @RequestParam("file") MultipartFile file,
+    //         @RequestParam("userId") String userId,
+    //         @RequestParam("kakaoName") String kakaoName,
+    //         @RequestParam("characterName") String characterName,
+    //         @RequestParam(value = "characterAge", defaultValue = "0") int characterAge,
+    //         @RequestParam(value = "relationType", defaultValue = "0") int relationType) {
         
-        System.out.println("[Upload] 파일 업로드 - 파일명: " + file.getOriginalFilename() 
-            + ", 사용자: " + userId + ", 대상: " + kakaoName);
+    //     System.out.println("[Upload] 파일 업로드 - 파일명: " + file.getOriginalFilename() 
+    //         + ", 사용자: " + userId + ", 대상: " + kakaoName);
 
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("파일이 비어있습니다.");
-        }
+    //     if (file.isEmpty()) {
+    //         throw new IllegalArgumentException("파일이 비어있습니다.");
+    //     }
 
-        try {
-            // 1. 파일 내용 읽기
-            String rawTextContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+    //     try {
+    //         // 1. 파일 내용 읽기
+    //         String rawTextContent = new String(file.getBytes(), StandardCharsets.UTF_8);
 
-            // 2. Java 파서로 파싱 및 통계 조회 (대상 인물 확인용)
-            ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(rawTextContent);
+    //         // 2. Java 파서로 파싱 및 통계 조회 (대상 인물 확인용)
+    //         ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(rawTextContent);
             
-            // 3. 대상 인물 존재 여부 확인
-            if (!parsedData.getParticipants().contains(kakaoName)) {
-                throw new IllegalArgumentException(
-                    "대화에서 '" + kakaoName + "'을(를) 찾을 수 없습니다. " +
-                    "참여자 목록: " + parsedData.getParticipants()
-                );
-            }
+    //         // 3. 대상 인물 존재 여부 확인
+    //         if (!parsedData.getParticipants().contains(kakaoName)) {
+    //             throw new IllegalArgumentException(
+    //                 "대화에서 '" + kakaoName + "'을(를) 찾을 수 없습니다. " +
+    //                 "참여자 목록: " + parsedData.getParticipants()
+    //             );
+    //         }
 
-            // 4. participants에서 상대방 찾기(kakaoName 제외)
-            List<String> participants = parsedData.getParticipants();
-            String targetName = participants.stream()
-                .filter(name -> !name.equals(kakaoName))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                    "1:1 대화에서 상대방을 찾을 수 없습니다. 참여자: " + participants));
+    //         // 4. participants에서 상대방 찾기(kakaoName 제외)
+    //         List<String> participants = parsedData.getParticipants();
+    //         String targetName = participants.stream()
+    //             .filter(name -> !name.equals(kakaoName))
+    //             .findFirst()
+    //             .orElseThrow(() -> new IllegalArgumentException(
+    //                 "1:1 대화에서 상대방을 찾을 수 없습니다. 참여자: " + participants));
 
-            System.out.println("[Upload] 상대방 자동 찾기 - 본인: " + kakaoName + ", 상대방: " + targetName);
+    //         System.out.println("[Upload] 상대방 자동 찾기 - 본인: " + kakaoName + ", 상대방: " + targetName);
 
-            // 5. 파싱 + PII 마스킹 + JSON 변환 (최초 1회만 파싱)
-            String dialogueJson = kakaoTalkParseService.parseAndConvertToJson(rawTextContent);
+    //         // 5. 파싱 + PII 마스킹 + JSON 변환 (최초 1회만 파싱)
+    //         String dialogueJson = kakaoTalkParseService.parseAndConvertToJson(rawTextContent);
 
-            // 6. 사용자 조회
-            User user = userRepository.findByUserId(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+    //         // 6. 사용자 조회
+    //         User user = userRepository.findByUserId(userId)
+    //                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
-            // 7. 기존 캐릭터 확인 또는 새로 생성
-            UserCharacter character = userCharacterRepository
-                    .findByUserAndKakaoName(user, targetName)
-                    .orElse(null);
+    //         // 7. 기존 캐릭터 확인 또는 새로 생성
+    //         UserCharacter character = userCharacterRepository
+    //                 .findByUserAndKakaoName(user, targetName)
+    //                 .orElse(null);
 
-            if (character == null) {
-                // 새 캐릭터 생성
-                character = UserCharacter.builder()
-                        .user(user)
-                        .characterName(characterName)
-                        .characterAge(characterAge)
-                        .relationType(relationType)
-                        .kakaoName(targetName)
-                        .fullDialogue(dialogueJson)
-                        .build();
-            } else {
-                // 기존 캐릭터 업데이트
-                character.setCharacterName(characterName);
-                character.setCharacterAge(characterAge);
-                character.setRelationType(relationType);
-                character.setFullDialogue(dialogueJson);
-            }
+    //         if (character == null) {
+    //             // 새 캐릭터 생성
+    //             character = UserCharacter.builder()
+    //                     .user(user)
+    //                     .characterName(characterName)
+    //                     .characterAge(characterAge)
+    //                     .relationType(relationType)
+    //                     .kakaoName(targetName)
+    //                     .fullDialogue(dialogueJson)
+    //                     .build();
+    //         } else {
+    //             // 기존 캐릭터 업데이트
+    //             character.setCharacterName(characterName);
+    //             character.setCharacterAge(characterAge);
+    //             character.setRelationType(relationType);
+    //             character.setFullDialogue(dialogueJson);
+    //         }
 
-            // 8. DB 저장
-            UserCharacter savedCharacter = userCharacterRepository.save(character);
+    //         // 8. DB 저장
+    //         UserCharacter savedCharacter = userCharacterRepository.save(character);
 
-            // 9. 캐릭터 리포트 생성 (fullDialogue에서 부정적 반응 트리거 추출)
-            try {
-                analysisService.createReportCharacterFromFullDialogue(
-                    savedCharacter,
-                    kakaoName,
-                    targetName
-                );
-                System.out.println("[Upload] 캐릭터 리포트 생성 완료 - 캐릭터ID: " + savedCharacter.getCharacterId());
-            } catch (Exception e) {
-                System.err.println("[Upload] 캐릭터 리포트 생성 실패: " + e.getMessage());
-                // 리포트 생성 실패해도 업로드는 성공으로 처리
-            }
+    //         // 9. 캐릭터 리포트 생성 (fullDialogue에서 부정적 반응 트리거 추출)
+    //         try {
+    //             analysisService.createReportCharacterFromFullDialogue(
+    //                 savedCharacter,
+    //                 kakaoName,
+    //                 targetName
+    //             );
+    //             System.out.println("[Upload] 캐릭터 리포트 생성 완료 - 캐릭터ID: " + savedCharacter.getCharacterId());
+    //         } catch (Exception e) {
+    //             System.err.println("[Upload] 캐릭터 리포트 생성 실패: " + e.getMessage());
+    //             // 리포트 생성 실패해도 업로드는 성공으로 처리
+    //         }
             
-            // 10. 응답 반환
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "characterId", savedCharacter.getCharacterId(),
-                "characterName", savedCharacter.getCharacterName(),
-                "kakaoName", savedCharacter.getKakaoName(),
-                "dialogueJsonLength", dialogueJson.length(),
-                "participants", parsedData.getParticipants(),
-                "totalMessages", parsedData.getTotalMessages(),
-                "dateRange", Map.of(
-                    "start", parsedData.getStartDate() != null ? parsedData.getStartDate().toString() : "",
-                    "end", parsedData.getEndDate() != null ? parsedData.getEndDate().toString() : ""
-                )
-            ));
+    //         // 10. 응답 반환
+    //         return ResponseEntity.ok(Map.of(
+    //             "success", true,
+    //             "characterId", savedCharacter.getCharacterId(),
+    //             "characterName", savedCharacter.getCharacterName(),
+    //             "kakaoName", savedCharacter.getKakaoName(),
+    //             "dialogueJsonLength", dialogueJson.length(),
+    //             "participants", parsedData.getParticipants(),
+    //             "totalMessages", parsedData.getTotalMessages(),
+    //             "dateRange", Map.of(
+    //                 "start", parsedData.getStartDate() != null ? parsedData.getStartDate().toString() : "",
+    //                 "end", parsedData.getEndDate() != null ? parsedData.getEndDate().toString() : ""
+    //             )
+    //         ));
             
-        } catch (IOException e) {
-            throw new RuntimeException("파일 읽기 실패: " + e.getMessage());
-        }
-    }
+    //     } catch (IOException e) {
+    //         throw new RuntimeException("파일 읽기 실패: " + e.getMessage());
+    //     }
+    // }
 
     /**
      * 카카오톡 파일 업로드 및 마스킹 처리 (DB 저장 없이 JSON 반환)
