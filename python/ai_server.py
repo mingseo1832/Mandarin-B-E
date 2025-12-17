@@ -171,6 +171,16 @@ class ReportResponse(BaseModel):
     report: SimulationReport = Field(description="생성된 시뮬레이션 분석 보고서")
 
 
+class ExtractNegativeTriggersRequest(BaseModel):
+    text_content: str = Field(description="전체 대화 텍스트 (가장 최근부터 maxChars만큼)")
+    user_name: str = Field(description="사용자(본인) 이름")
+    target_name: str = Field(description="상대방(분석 대상) 이름")
+    max_chars: int = Field(default=DEFAULT_MAX_CHARS, description="최대 문자 수")
+
+class ExtractNegativeTriggersResponse(BaseModel):
+    negative_triggers: List[ReactionTrigger] = Field(description="부정적 반응 트리거 TOP 3")
+
+
 # ============================================================
 # 환경 설정 및 OpenAI 클라이언트 초기화
 # ============================================================
@@ -625,6 +635,61 @@ def analyze_chat_performance(
         return None
 
 
+def extract_negative_triggers_from_recent(
+    text_content: str,
+    user_name: str,
+    target_name: str
+) -> List[ReactionTrigger]:
+    """가장 최근 대화에서 부정적 반응 트리거를 추출합니다.
+    
+    Args:
+        text_content: 전체 대화 텍스트 (가장 최근부터 maxChars만큼)
+        user_name: 사용자(본인) 이름
+        target_name: 상대방(분석 대상) 이름
+    
+    Returns:
+        부정적 반응 트리거 리스트 (최대 3개)
+    """
+    system_prompt = f"""당신은 대화 분석 전문가입니다.
+다음 대화 로그에서 '{target_name}'이 부정적으로 반응한 상황을 찾아주세요.
+
+[분석 지침]
+1. '{target_name}'이 화를 내거나, 불편해하거나, 거부하거나, 부정적인 감정을 표현한 순간을 찾으세요
+2. 그 순간 이전에 '{user_name}'이 한 말이나 행동이 무엇이었는지 파악하세요
+3. 가장 최근 대화부터 분석하여 가장 부정적이었던 반응을 찾으세요
+4. 각 부정적 반응에 대해 다음 정보를 추출하세요:
+   - trigger: '{user_name}'이 한 말/행동/주제 (예: '약속 취소', '비판적인 말', '애정 표현 부족')
+   - reaction: '{target_name}'의 부정적 반응 패턴 (예: '짜증내며 단답으로 변함', '무시하거나 답장 안 함')
+   - example: 실제 대화에서 해당 반응이 나타난 예시 문장 (대화 형식으로)
+
+[출력 형식]
+- negative_triggers: 최대 3개 (가장 부정적이었던 것부터 우선순위)
+- 각 trigger는 trigger, reaction, example 필드를 포함해야 합니다"""
+
+    analysis_prompt = f"""다음 대화를 분석해주세요.
+
+[참여자 정보]
+- 사용자: {user_name}
+- 상대방: {target_name}
+
+[대화 로그]
+{text_content}
+
+위 대화에서 {target_name}이 부정적으로 반응한 상황을 최대 3개 찾아주세요. 가장 부정적이었던 것부터 우선순위를 매겨주세요."""
+
+    try:
+        response = client.responses.parse(
+            model=DEFAULT_MODEL,
+            instructions=system_prompt,
+            input=analysis_prompt,
+            text_format=ReactionAnalysis,
+        )
+        return response.output_parsed.negative_triggers
+    except Exception as e:
+        print(f"부정적 반응 트리거 추출 오류: {e}")
+        return []
+
+
 # ============================================================
 # API 엔드포인트
 # ============================================================
@@ -742,6 +807,32 @@ def summarize_history_endpoint(req: HistorySumRequest):
     summary = summarize_history(req.history, req.character_name)
     
     return HistorySumResponse(summary=summary)
+
+
+@app.post("/extract-negative-triggers", response_model=ExtractNegativeTriggersResponse)
+def extract_negative_triggers(req: ExtractNegativeTriggersRequest):
+    """
+    전체 대화 텍스트에서 가장 최근부터 maxChars만큼의 맥락에서 
+    부정적으로 반응했던 3가지를 추출합니다.
+    """
+    if not req.text_content.strip():
+        raise HTTPException(status_code=400, detail="대화 내용이 비어있습니다.")
+    
+    if not req.target_name.strip():
+        raise HTTPException(status_code=400, detail="분석 대상 이름이 비어있습니다.")
+    
+    # 가장 최근부터 maxChars만큼만 사용
+    text_content = req.text_content
+    if len(text_content) > req.max_chars:
+        text_content = text_content[-req.max_chars:]
+    
+    negative_triggers = extract_negative_triggers_from_recent(
+        text_content,
+        req.user_name,
+        req.target_name
+    )
+    
+    return ExtractNegativeTriggersResponse(negative_triggers=negative_triggers)
 
 
 # ============================================================
