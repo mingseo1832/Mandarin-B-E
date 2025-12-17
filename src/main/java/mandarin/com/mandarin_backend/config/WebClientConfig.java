@@ -16,7 +16,7 @@ public class WebClientConfig {
     public WebClient webClient() {
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)  // 연결 타임아웃 5초
-                .responseTimeout(Duration.ofSeconds(120));           // 응답 타임아웃 2분
+                .responseTimeout(Duration.ofSeconds(300));           // 응답 타임아웃 2분
 
         return WebClient.builder()
                 .baseUrl("http://localhost:8000")
