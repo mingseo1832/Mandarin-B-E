@@ -98,7 +98,7 @@ public class UserCharacterController {
                     System.out.println("--------------------------------");
                     System.out.println("--------------------------------");
                     System.out.println("--------------------------------");
-                    System.out.println("parsedData: " + fullDialogue);
+                    System.out.println("parsedData: " + rawTextContent);
                     
                     // 2. 참여자 목록에서 상대방 찾기 (kakaoName 제외)
                     List<String> participants = parsedData.getParticipants();
