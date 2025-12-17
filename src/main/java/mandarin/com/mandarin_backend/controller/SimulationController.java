@@ -35,6 +35,26 @@ public class SimulationController {
     }
 
     /**
+     * 시뮬레이션 단건 조회 API
+     * GET /simulation/{simulation_id}
+     * 
+     * simulation_id에 해당하는 시뮬레이션의 정보를 반환합니다.
+     */
+    @GetMapping("/{simulation_id}")
+    public ResponseEntity<ApiResponse<SimulationResponseDto>> getSimulationById(
+            @PathVariable("simulation_id") Long simulationId) {
+
+        ApiResponse<SimulationResponseDto> response = 
+                simulationService.getSimulationById(simulationId);
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response); // 200 OK
+        }
+
+        return ResponseEntity.badRequest().body(response); // 실패 시 400
+    }
+
+    /**
      * 시뮬레이션 대화 다건 조회 API
      * GET /simulation/message/{simulation_id}
      * 

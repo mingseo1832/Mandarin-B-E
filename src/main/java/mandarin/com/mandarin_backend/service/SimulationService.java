@@ -55,6 +55,27 @@ public class SimulationService {
     }
 
     /**
+     * 시뮬레이션 단건 조회 API
+     */
+    public ApiResponse<SimulationResponseDto> getSimulationById(Long simulationId) {
+        Simulation simulation = simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new IllegalArgumentException("시뮬레이션을 찾을 수 없습니다: " + simulationId));
+        
+        SimulationResponseDto responseDto = SimulationResponseDto.builder()
+                .simulationId(simulation.getSimulationId())
+                .characterId(simulation.getCharacter().getCharacterId())
+                .simulationName(simulation.getSimulationName())
+                .purpose(simulation.getPurpose())
+                .category(simulation.getCategory())
+                .time(simulation.getTime())
+                .lastUpdateTime(simulation.getLastUpdateTime())
+                .isFinished(simulation.getIsFinished())
+                .build();
+
+        return ApiResponse.success("시뮬레이션 정보 조회 성공", responseDto);
+    }
+
+    /**
      * simulation_id로 시뮬레이션 대화 다건 조회
      * 해당 시뮬레이션의 모든 대화 메시지를 시간순으로 반환
      */
