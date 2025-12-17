@@ -495,70 +495,78 @@ public class AnalysisService {
      */
     @Transactional
     public void createReportCharacterFromFullDialogue(
-            UserCharacter character,
-            String kakaoName,
-            String targetName) {
+        UserCharacter character,
+        String kakaoName,
+        String targetName) {
+    
+    // 1. DB에서 가져온 건 '파일 경로'입니다. (변수명 변경: dialogueJson -> filePath)
+    String filePath = character.getFullDialogue();
+    
+    if (filePath == null || filePath.isEmpty()) {
+        System.out.println("[ReportCharacter] 대화 파일 경로가 없어 리포트를 생성하지 않습니다.");
+        return;
+    }
+    
+    try {
+        // ★★★ [수정 핵심] 파일 경로를 이용해 실제 파일 내용을 읽어옵니다. ★★★
+        Path path = Paths.get(filePath);
+        String jsonContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+
+        // 2. JSON을 텍스트로 변환 (이제 jsonContent는 진짜 JSON입니다)
+        int maxChars = KakaoTalkParseService.getDefaultMaxChars();
         
-        String dialogueJson = character.getFullDialogue();
-        if (dialogueJson == null || dialogueJson.isEmpty()) {
-            System.out.println("[ReportCharacter] 대화 내용이 없어 리포트를 생성하지 않습니다.");
+        // 수정: filePath가 아니라 읽어온 jsonContent를 넘겨줍니다.
+        String dialogueText = kakaoTalkParseService.convertJsonToText(jsonContent, maxChars);
+        
+        // 3. Python 서버로 부정적 반응 트리거 추출 요청
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("text_content", dialogueText);
+        requestBody.put("user_name", kakaoName);
+        requestBody.put("target_name", targetName);
+        requestBody.put("max_chars", maxChars);
+        
+        Map<String, Object> response = webClient.post()
+                .uri("/extract-negative-triggers")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .block();
+        
+        if (response == null || !response.containsKey("negative_triggers")) {
+            System.out.println("[ReportCharacter] 부정적 반응 트리거를 찾을 수 없습니다.");
             return;
         }
         
-        try {
-            // 1. JSON을 텍스트로 변환 (가장 최근부터 maxChars만큼)
-            int maxChars = KakaoTalkParseService.getDefaultMaxChars();
-            String dialogueText = kakaoTalkParseService.convertJsonToText(dialogueJson, maxChars);
-            
-            // 2. Python 서버로 부정적 반응 트리거 추출 요청
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("text_content", dialogueText);
-            requestBody.put("user_name", kakaoName);
-            requestBody.put("target_name", targetName);
-            requestBody.put("max_chars", maxChars);
-            
-            Map<String, Object> response = webClient.post()
-                    .uri("/extract-negative-triggers")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
-            
-            if (response == null || !response.containsKey("negative_triggers")) {
-                System.out.println("[ReportCharacter] 부정적 반응 트리거를 찾을 수 없습니다.");
-                return;
-            }
-            
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> negativeTriggersList = 
-                (List<Map<String, Object>>) response.get("negative_triggers");
-            
-            if (negativeTriggersList == null || negativeTriggersList.isEmpty()) {
-                System.out.println("[ReportCharacter] 부정적 반응 트리거가 없습니다.");
-                return;
-            }
-            
-            // 3. DTO로 변환
-            List<ReactionTriggerDto> negativeTriggers = negativeTriggersList.stream()
-                .map(triggerMap -> ReactionTriggerDto.builder()
-                    .trigger((String) triggerMap.get("trigger"))
-                    .reaction((String) triggerMap.get("reaction"))
-                    .example((String) triggerMap.get("example"))
-                    .build())
-                .collect(Collectors.toList());
-            
-            // 4. ReportCharacter 및 ReportCharacterDetailLog 저장
-            saveReportCharacterFromNegativeTriggers(
-                character,
-                negativeTriggers,
-                kakaoName,
-                targetName
-            );
-            
-        } catch (Exception e) {
-            System.err.println("[ReportCharacter] 리포트 생성 실패: " + e.getMessage());
-            e.printStackTrace();
-            // 리포트 생성 실패해도 UserCharacter 저장은 성공으로 처리
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> negativeTriggersList = 
+            (List<Map<String, Object>>) response.get("negative_triggers");
+        
+        if (negativeTriggersList == null || negativeTriggersList.isEmpty()) {
+            System.out.println("[ReportCharacter] 부정적 반응 트리거가 없습니다.");
+            return;
         }
+        
+        // 4. DTO로 변환
+        List<ReactionTriggerDto> negativeTriggers = negativeTriggersList.stream()
+            .map(triggerMap -> ReactionTriggerDto.builder()
+                .trigger((String) triggerMap.get("trigger"))
+                .reaction((String) triggerMap.get("reaction"))
+                .example((String) triggerMap.get("example"))
+                .build())
+            .collect(Collectors.toList());
+        
+        // 5. ReportCharacter 및 ReportCharacterDetailLog 저장
+        saveReportCharacterFromNegativeTriggers(
+            character,
+            negativeTriggers,
+            kakaoName,
+            targetName
+        );
+        
+    } catch (Exception e) {
+        System.err.println("[ReportCharacter] 리포트 생성 실패: " + e.getMessage());
+        e.printStackTrace();
+        // 리포트 생성 실패해도 UserCharacter 저장은 성공으로 처리
     }
+}
 }

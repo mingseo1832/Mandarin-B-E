@@ -13,7 +13,7 @@ public interface UserCharacterRepository extends JpaRepository<UserCharacter, Lo
     List<UserCharacter> findByUser(User user);
 
     // 사용자 ID로 모든 캐릭터 조회
-    List<UserCharacter> findByUserId(Long userId);
+    List<UserCharacter> findByUserId(Long id);
 
     // 단일 조건 조회
     Optional<UserCharacter> findByCharacterName(String characterName);

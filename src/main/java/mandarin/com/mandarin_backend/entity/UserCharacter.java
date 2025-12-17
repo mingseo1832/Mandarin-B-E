@@ -19,7 +19,7 @@ public class UserCharacter {
 
     // 기존 ManyToOne 유지 (캐릭터는 반드시 User에 속함)
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "id", nullable = false)
     private User user;
 
     @Column(nullable = false, length = 50)
