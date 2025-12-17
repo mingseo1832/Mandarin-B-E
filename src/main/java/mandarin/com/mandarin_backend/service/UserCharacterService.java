@@ -51,7 +51,7 @@ public class UserCharacterService {
     // 3. 캐릭터 생성 (수정됨)
     // ================================
     @Transactional
-    public void createCharacter(UserCharacterRequestDto dto,
+    public UserCharacter createCharacter(UserCharacterRequestDto dto,
                                 MultipartFile characterImg,
                                 MultipartFile fullDialogueFile) throws IOException {
 
@@ -76,7 +76,7 @@ public class UserCharacterService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        characterRepository.save(newChar);
+        return characterRepository.save(newChar);  // 반환 타입 변경
     }
 
     // ================================

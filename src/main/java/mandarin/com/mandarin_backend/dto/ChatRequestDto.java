@@ -21,7 +21,7 @@ public class ChatRequestDto {
      */
     private Long simulationId;
     
-    @JsonProperty("user_message")
+    @JsonProperty("userMessage")
     private String userMessage;
     
     @Builder.Default
