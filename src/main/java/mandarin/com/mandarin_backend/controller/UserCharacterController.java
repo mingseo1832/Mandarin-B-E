@@ -2,11 +2,15 @@ package mandarin.com.mandarin_backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper; // [추가] JSON 변환 라이브러리
 import lombok.RequiredArgsConstructor;
+import mandarin.com.mandarin_backend.dto.ParsedChatDataDto;
 import mandarin.com.mandarin_backend.dto.ReportCharacterResponseDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterRequestDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterResponseDto;
+import mandarin.com.mandarin_backend.entity.UserCharacter;
 import mandarin.com.mandarin_backend.exception.CharacterNotFoundException;
 import mandarin.com.mandarin_backend.exception.UserNotFoundException;
+import mandarin.com.mandarin_backend.service.AnalysisService;
+import mandarin.com.mandarin_backend.service.KakaoTalkParseService;
 import mandarin.com.mandarin_backend.service.ReportCharacterService;
 import mandarin.com.mandarin_backend.service.UserCharacterService;
 import org.springframework.http.MediaType;
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +31,8 @@ public class UserCharacterController {
 
     private final UserCharacterService characterService;
     private final ReportCharacterService reportCharacterService;
+    private final AnalysisService analysisService;
+    private final KakaoTalkParseService kakaoTalkParseService;
 
     // ----------------- 캐릭터 다건 조회 -----------------
     // [수정] GET 요청에는 consumes = MediaType.MULTIPART_FORM_DATA_VALUE 가 필요 없습니다. 제거했습니다.
@@ -80,7 +87,39 @@ public class UserCharacterController {
             dto = objectMapper.readValue(jsonStr, UserCharacterRequestDto.class);
 
             // 서비스 호출
-            characterService.createCharacter(dto, characterImg, fullDialogue);
+            UserCharacter savedCharacter = characterService.createCharacter(dto, characterImg, fullDialogue);
+
+            // 캐릭터 리포트 생성 (fullDialogue 파일이 있는 경우)
+            if (fullDialogue != null && !fullDialogue.isEmpty() && dto.getKakaoName() != null) {
+                try {
+                    // 1. 대화 파일 파싱하여 참여자 목록 조회
+                    String rawTextContent = new String(fullDialogue.getBytes(), StandardCharsets.UTF_8);
+                    ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(rawTextContent);
+                    
+                    // 2. 참여자 목록에서 상대방 찾기 (kakaoName 제외)
+                    List<String> participants = parsedData.getParticipants();
+                    String kakaoName = dto.getKakaoName();
+                    String targetName = participants.stream()
+                        .filter(name -> !name.equals(kakaoName))
+                        .findFirst()
+                        .orElse(null);
+                    
+                    if (targetName != null) {
+                        // 3. 리포트 생성
+                        analysisService.createReportCharacterFromFullDialogue(
+                            savedCharacter,
+                            kakaoName,
+                            targetName
+                        );
+                        System.out.println("[Create] 캐릭터 리포트 생성 완료 - 캐릭터ID: " + savedCharacter.getCharacterId());
+                    } else {
+                        System.out.println("[Create] 상대방을 찾을 수 없어 리포트를 생성하지 않습니다. 참여자: " + participants);
+                    }
+                } catch (Exception e) {
+                    System.err.println("[Create] 캐릭터 리포트 생성 실패: " + e.getMessage());
+                    // 리포트 생성 실패해도 캐릭터 생성은 성공으로 처리
+                }
+            }
 
             return ResponseEntity.ok(Map.of("code", 200));
 
