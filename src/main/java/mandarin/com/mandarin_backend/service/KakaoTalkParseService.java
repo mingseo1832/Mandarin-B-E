@@ -41,13 +41,44 @@ public class KakaoTalkParseService {
     }
 
     /**
-     * 카카오톡 파일을 파싱하여 기본 정보 반환 (문자열 입력)
-     */
-    public ParsedChatDataDto parseInfo(String textContent) {
-        KakaoTalkParser parser = new KakaoTalkParser(textContent);
-        return parser.getStatistics();
+ * 카카오톡 파일을 파싱하여 기본 정보 반환 (문자열 입력)
+ * 수정됨: JSON 입력도 처리 가능하도록 개선
+ */
+public ParsedChatDataDto parseInfo(String textContent) {
+    // 1. ObjectMapper 초기화 (안전장치)
+    if (objectMapper == null) {
+        objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
     }
 
+    // ★ [추가된 로직] 입력값이 JSON 형식이면 바로 변환해서 정보 추출
+    if (textContent.trim().startsWith("{")) {
+        try {
+            // JSON 문자열 -> DTO 변환
+            ParsedDialogueDto jsonDto = objectMapper.readValue(textContent, ParsedDialogueDto.class);
+
+            // DTO -> ParsedChatDataDto (통계 객체)로 변환하여 리턴
+            return ParsedChatDataDto.builder()
+                    .formatType(jsonDto.getFormatType())
+                    .participants(jsonDto.getParticipants())
+                    .totalMessages(jsonDto.getTotalMessages())
+                    .totalDays(jsonDto.getTotalDays())
+                    .startDate(jsonDto.getStartDate() != null ? LocalDate.parse(jsonDto.getStartDate()) : null)
+                    .endDate(jsonDto.getEndDate() != null ? LocalDate.parse(jsonDto.getEndDate()) : null)
+                    // dailyChats 정보도 필요하다면 여기서 변환해서 넣어야 하지만, 
+                    // parseInfo는 보통 메타데이터(참여자 등)만 필요하므로 생략 가능
+                    .build();
+
+        } catch (Exception e) {
+            System.err.println("JSON 파싱 중 오류 발생(parseInfo): " + e.getMessage());
+            // 에러 나면 혹시 모르니 아래 텍스트 파서로 넘겨보거나, 빈 객체 리턴
+        }
+    }
+
+    // 2. 기존 로직 (일반 텍스트 파싱)
+    KakaoTalkParser parser = new KakaoTalkParser(textContent);
+    return parser.getStatistics();
+}
     // ============================================================
     // JSON 직렬화/역직렬화 메서드
     // ============================================================
