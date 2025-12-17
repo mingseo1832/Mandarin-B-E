@@ -4,12 +4,8 @@ import mandarin.com.mandarin_backend.dto.AnalyzeRequestDto;
 import mandarin.com.mandarin_backend.dto.HistorySumRequestDto;
 import mandarin.com.mandarin_backend.dto.ParseInfoResponseDto;
 import mandarin.com.mandarin_backend.dto.ParsedChatDataDto;
-import mandarin.com.mandarin_backend.entity.User;
-import mandarin.com.mandarin_backend.entity.UserCharacter;
 import mandarin.com.mandarin_backend.entity.enums.SimulationCategory;
 import mandarin.com.mandarin_backend.entity.enums.SimulationPurpose;
-import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
-import mandarin.com.mandarin_backend.repository.UserRepository;
 import mandarin.com.mandarin_backend.service.AnalysisService;
 import mandarin.com.mandarin_backend.service.KakaoTalkParseService;
 import mandarin.com.mandarin_backend.service.UserCharacterService;
@@ -22,7 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -32,8 +27,6 @@ public class PersonaController {
 
     private final AnalysisService analysisService;
     private final KakaoTalkParseService kakaoTalkParseService;
-    private final UserCharacterRepository userCharacterRepository;
-    private final UserRepository userRepository;
     private final UserCharacterService userCharacterService;
 
     /**
