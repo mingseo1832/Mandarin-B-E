@@ -95,6 +95,8 @@ public class UserCharacterController {
                     // 1. 대화 파일 파싱하여 참여자 목록 조회
                     String rawTextContent = new String(fullDialogue.getBytes(), StandardCharsets.UTF_8);
                     ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(rawTextContent);
+
+                    System.out.println("parsedData: " + parsedData);
                     
                     // 2. 참여자 목록에서 상대방 찾기 (kakaoName 제외)
                     List<String> participants = parsedData.getParticipants();
