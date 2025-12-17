@@ -50,7 +50,7 @@ public class AnalysisService {
     private final ReportCharacterRepository reportCharacterRepository;
     private final ReportCharacterDetailLogRepository reportCharacterDetailLogRepository;
     private final KakaoTalkParseService kakaoTalkParseService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Value("${file.upload-dir}")
     private String uploadDir;

@@ -20,13 +20,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * 카카오톡 대화 파싱 및 전처리 서비스
  */
 @Service
+@RequiredArgsConstructor
 public class KakaoTalkParseService {
 
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     /** 최대 문자 수 제한 기본값 */
     private static final int DEFAULT_MAX_CHARS = 150000;
@@ -45,11 +48,6 @@ public class KakaoTalkParseService {
  * 수정됨: JSON 입력도 처리 가능하도록 개선
  */
 public ParsedChatDataDto parseInfo(String textContent) {
-    // 1. ObjectMapper 초기화 (안전장치)
-    if (objectMapper == null) {
-        objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-    }
 
     // ★ [추가된 로직] 입력값이 JSON 형식이면 바로 변환해서 정보 추출
     if (textContent.trim().startsWith("{")) {
@@ -90,11 +88,7 @@ public ParsedChatDataDto parseInfo(String textContent) {
      * @return 파싱된 데이터의 JSON 문자열
      */
     public String parseAndConvertToJson(String textContent) {
-        // 1. ObjectMapper 초기화 (없으면 생성)
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-        }
+
     
         // 2. 입력값이 JSON인지 확인 (기존 로직 유지)
         if (textContent.trim().startsWith("{")) {
