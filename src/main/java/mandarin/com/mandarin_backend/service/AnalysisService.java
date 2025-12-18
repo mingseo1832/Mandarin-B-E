@@ -323,10 +323,10 @@ public class AnalysisService {
             // 1. ReportCharacter 저장
             ReportCharacter reportCharacter = ReportCharacter.builder()
                     .character(character)
-                    .conflictName(trigger.getTrigger())  // 키워드
+                    .conflictName(trigger.getKeyword() != null ? trigger.getKeyword() : trigger.getTrigger())  // 키워드 우선, 없으면 trigger 사용
                     .dangerLevel(dangerLevel)
-                    .description(trigger.getReaction())  // 부정적 반응 패턴 설명
-                    .solution(generateSolution(trigger.getTrigger(), trigger.getReaction()))
+                    .description(buildDetailedDescription(trigger))  // 부정적 반응 패턴 설명
+                    .solution(trigger.getSolution() != null && !trigger.getSolution().isEmpty() ? trigger.getSolution() : generateDefaultSolution(trigger))
                     .build();
             
             ReportCharacter savedReport = reportCharacterRepository.save(reportCharacter);
@@ -351,18 +351,42 @@ public class AnalysisService {
     /**
      * 갈등 요소에 대한 해결 방안 생성
      * 
-     * @param conflictName 갈등 요소 이름
-     * @param reaction 부정적 반응 패턴
+     * @param trigger 갈등 요소 정보
      * @return 관계 개선 조언
      */
-    private String generateSolution(String conflictName, String reaction) {
+    private String generateDefaultSolution(ReactionTriggerDto trigger) {
         // 기본 템플릿 기반 조언 생성
-        StringBuilder solution = new StringBuilder();
-        solution.append("'").append(conflictName).append("'에 대해 상대방이 민감하게 반응하는 것으로 보입니다. ");
-        solution.append("이 주제에 대해 대화할 때는 상대방의 감정을 먼저 인정하고, ");
-        solution.append("공감하는 표현을 사용해보세요. ");
-        solution.append("필요하다면 솔직하게 서로의 생각을 나누는 시간을 가져보는 것도 좋습니다.");
-        return solution.toString();
+        return "'" + (trigger.getKeyword() != null ? trigger.getKeyword() : trigger.getTrigger()) 
+            + "'와 관련된 상황에서 상대방이 부정적으로 반응하는 것으로 보입니다. "
+            + "이 주제에 대해 대화할 때는 상대방의 감정을 먼저 인정하고, "
+            + "공감하는 표현을 사용해보세요. "
+            + "필요하다면 솔직하게 서로의 생각을 나누는 시간을 가져보는 것도 좋습니다.";
+    }
+    
+    /**
+     * 갈등 상황에 대한 상세 설명 생성
+     * 원인과 반응을 포함한 설명
+     * 
+     * @param trigger 부정적 반응 트리거
+     * @return 상세 설명
+     */
+    private String buildDetailedDescription(ReactionTriggerDto trigger) {
+        StringBuilder description = new StringBuilder();
+        
+        // 갈등 원인 설명
+        if (trigger.getCause() != null && !trigger.getCause().isEmpty()) {
+            description.append("[갈등 원인]\n");
+            description.append(trigger.getCause()).append("\n\n");
+        }
+        
+        // 트리거 설명
+        description.append("[발생 상황]\n");
+        description.append("사용자가 '").append(trigger.getTrigger()).append("'와 같은 말이나 행동을 했을 때, ");
+        
+        // 반응 패턴 설명
+        description.append("상대방은 '").append(trigger.getReaction()).append("'와 같은 부정적 반응을 보였습니다.");
+        
+        return description.toString();
     }
 
     /**
@@ -570,8 +594,11 @@ public class AnalysisService {
         // 4. DTO로 변환
         List<ReactionTriggerDto> negativeTriggers = negativeTriggersList.stream()
             .map(triggerMap -> ReactionTriggerDto.builder()
+                .keyword((String) triggerMap.get("keyword"))
                 .trigger((String) triggerMap.get("trigger"))
                 .reaction((String) triggerMap.get("reaction"))
+                .cause((String) triggerMap.get("cause"))
+                .solution((String) triggerMap.get("solution"))
                 .example((String) triggerMap.get("example"))
                 .build())
             .collect(Collectors.toList());
