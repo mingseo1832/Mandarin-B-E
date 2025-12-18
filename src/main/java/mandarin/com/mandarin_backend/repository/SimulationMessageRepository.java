@@ -22,4 +22,14 @@ public interface SimulationMessageRepository extends JpaRepository<SimulationMes
      * 특정 시뮬레이션의 메시지 수 조회
      */
     long countBySimulation(Simulation simulation);
+
+    /**
+     * 특정 시뮬레이션의 모든 메시지 삭제
+     */
+    void deleteBySimulation(Simulation simulation);
+
+    /**
+     * 특정 시뮬레이션 ID의 모든 메시지 삭제
+     */
+    void deleteBySimulation_SimulationId(Long simulationId);
 }

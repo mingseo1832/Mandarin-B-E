@@ -11,5 +11,10 @@ public interface ChatReportAvgRepository extends JpaRepository<ChatReportAvg, Lo
      * 유저 ID로 ChatReportAvg 목록 조회
      */
     List<ChatReportAvg> findByUser_Id(Long userId);
+
+    /**
+     * ChatReport ID로 ChatReportAvg 삭제
+     */
+    void deleteByChatReport_ChatReportId(Integer chatReportId);
 }
 

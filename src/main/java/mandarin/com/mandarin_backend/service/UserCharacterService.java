@@ -4,12 +4,10 @@ import lombok.RequiredArgsConstructor;
 import mandarin.com.mandarin_backend.dto.HistorySumResponseDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterRequestDto;
 import mandarin.com.mandarin_backend.dto.UserCharacterResponseDto;
-import mandarin.com.mandarin_backend.entity.User;
-import mandarin.com.mandarin_backend.entity.UserCharacter;
+import mandarin.com.mandarin_backend.entity.*;
 import mandarin.com.mandarin_backend.exception.CharacterNotFoundException;
 import mandarin.com.mandarin_backend.exception.UserNotFoundException;
-import mandarin.com.mandarin_backend.repository.UserCharacterRepository;
-import mandarin.com.mandarin_backend.repository.UserRepository;
+import mandarin.com.mandarin_backend.repository.*;
 import mandarin.com.mandarin_backend.util.FileUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +26,13 @@ public class UserCharacterService {
     private final WebClient webClient;
     private final UserRepository userRepository;
     private final UserCharacterRepository characterRepository;
+    private final SimulationRepository simulationRepository;
+    private final SimulationMessageRepository simulationMessageRepository;
+    private final ChatReportRepository chatReportRepository;
+    private final ChatReportDetailLogRepository chatReportDetailLogRepository;
+    private final ChatReportAvgRepository chatReportAvgRepository;
+    private final ReportCharacterRepository reportCharacterRepository;
+    private final ReportCharacterDetailLogRepository reportCharacterDetailLogRepository;
     private final FileUtil fileUtil;
 
     // 1. 다건 조회 (기존 동일)
@@ -111,15 +116,46 @@ public class UserCharacterService {
         }
     }
 
-    // 5. 삭제 (기존 동일)
+    // 5. 삭제 (연관된 모든 데이터 먼저 삭제)
     @Transactional
     public void deleteCharacter(Long characterId) {
         UserCharacter character = characterRepository.findById(characterId)
                 .orElseThrow(() -> new CharacterNotFoundException("캐릭터 정보가 없습니다."));
 
+        // 1. ReportCharacter 관련 데이터 삭제
+        List<ReportCharacter> reportCharacters = reportCharacterRepository.findByCharacter_CharacterId(characterId);
+        for (ReportCharacter rc : reportCharacters) {
+            // ReportCharacterDetailLog 삭제
+            reportCharacterDetailLogRepository.deleteByReportCharacter_ReportCharacterId(rc.getReportCharacterId());
+        }
+        // ReportCharacter 삭제
+        reportCharacterRepository.deleteAll(reportCharacters);
+
+        // 2. ChatReport 관련 데이터 삭제
+        List<ChatReport> chatReports = chatReportRepository.findByCharacter_CharacterId(characterId);
+        for (ChatReport cr : chatReports) {
+            // ChatReportDetailLog 삭제
+            chatReportDetailLogRepository.deleteByChatReportId(cr.getChatReportId());
+            // ChatReportAvg 삭제
+            chatReportAvgRepository.deleteByChatReport_ChatReportId(cr.getChatReportId());
+        }
+        // ChatReport 삭제
+        chatReportRepository.deleteAll(chatReports);
+
+        // 3. Simulation 관련 데이터 삭제
+        List<Simulation> simulations = simulationRepository.findByCharacterCharacterId(characterId);
+        for (Simulation sim : simulations) {
+            // SimulationMessage 삭제
+            simulationMessageRepository.deleteBySimulation_SimulationId(sim.getSimulationId());
+        }
+        // Simulation 삭제
+        simulationRepository.deleteAll(simulations);
+
+        // 4. 파일 삭제
         fileUtil.deleteFile(character.getCharacterImg());
         fileUtil.deleteFile(character.getFullDialogue());
 
+        // 5. UserCharacter 삭제
         characterRepository.delete(character);
     }
 
