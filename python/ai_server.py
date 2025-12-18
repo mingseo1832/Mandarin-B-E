@@ -99,6 +99,7 @@ class SimulationContext(BaseModel):
     history_sum: Optional[str] = Field(default=None, description="사용자와 상대간의 이야기 요약")
     purpose: Literal["FUTURE", "PAST"] = Field(description="시뮬레이션 목적")
     category: str = Field(description="구체적인 상황 카테고리")
+    meet_date: Optional[str] = Field(default=None, description="만난 날짜")
 
 
 class ChatRequest(BaseModel):
@@ -455,6 +456,13 @@ def generate_reply(
 - 나이: {simulation_context.character_age}세 (이 나이대에 맞는 자연스러운 대화를 해주세요)
 - 현재 관계: {get_relation_type_name(simulation_context.relation_type)}
 - {love_type_info}
+"""
+
+        #만난 날짜가 있으면 추가
+        if simulation_context.meet_date:
+            context_prompt += f"- 만난 날짜: {simulation_context.meet_date}\n"
+            
+        context_prompt += f"""
 
 [시뮬레이션 상황]
 - 목적: {"미래의 불확실한 상황을 미리 연습해보는 시뮬레이션" if simulation_context.purpose == "FUTURE" else "과거에 후회되는 상황을 다시 시도해보는 시뮬레이션"}
