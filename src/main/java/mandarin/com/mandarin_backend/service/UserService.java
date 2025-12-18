@@ -6,17 +6,29 @@ import mandarin.com.mandarin_backend.dto.LoginRequest;
 import mandarin.com.mandarin_backend.dto.SignUpRequest;
 import mandarin.com.mandarin_backend.dto.UserResponseDto;
 import mandarin.com.mandarin_backend.dto.UserUpdateRequestDto;
-import mandarin.com.mandarin_backend.entity.User;
-import mandarin.com.mandarin_backend.repository.UserRepository;
+import mandarin.com.mandarin_backend.entity.*;
+import mandarin.com.mandarin_backend.repository.*;
+import mandarin.com.mandarin_backend.util.FileUtil;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserCharacterRepository userCharacterRepository;
+    private final SimulationRepository simulationRepository;
+    private final SimulationMessageRepository simulationMessageRepository;
+    private final ChatReportRepository chatReportRepository;
+    private final ChatReportDetailLogRepository chatReportDetailLogRepository;
+    private final ChatReportAvgRepository chatReportAvgRepository;
+    private final ReportCharacterRepository reportCharacterRepository;
+    private final ReportCharacterDetailLogRepository reportCharacterDetailLogRepository;
+    private final FileUtil fileUtil;
 
     // 1. 회원가입 기능
     public ApiResponse<Long> signUp(SignUpRequest request) {
@@ -74,8 +86,8 @@ public class UserService {
         return ApiResponse.success("사용 가능한 아이디입니다.", false); // false = 사용 가능
     }
 
-    // 4. 사용자 탈퇴 기능
-
+    // 4. 사용자 탈퇴 기능 (연관된 모든 데이터 먼저 삭제)
+    @Transactional
     public ApiResponse<Void> deleteUser(Long id) {
 
         User user = userRepository.findById(id).orElse(null);
@@ -84,7 +96,50 @@ public class UserService {
             return ApiResponse.fail("존재하지 않는 사용자입니다.");
         }
 
-        // 삭제 처리
+        // 1. 유저의 모든 캐릭터 조회
+        List<UserCharacter> characters = userCharacterRepository.findByUser_Id(id);
+
+        for (UserCharacter character : characters) {
+            Long characterId = character.getCharacterId();
+
+            // 1-1. ReportCharacter 관련 데이터 삭제
+            List<ReportCharacter> reportCharacters = reportCharacterRepository.findByCharacter_CharacterId(characterId);
+            for (ReportCharacter rc : reportCharacters) {
+                // ReportCharacterDetailLog 삭제
+                reportCharacterDetailLogRepository.deleteByReportCharacter_ReportCharacterId(rc.getReportCharacterId());
+            }
+            // ReportCharacter 삭제
+            reportCharacterRepository.deleteAll(reportCharacters);
+
+            // 1-2. ChatReport 관련 데이터 삭제 (캐릭터 기준)
+            List<ChatReport> chatReportsByCharacter = chatReportRepository.findByCharacter_CharacterId(characterId);
+            for (ChatReport cr : chatReportsByCharacter) {
+                // ChatReportDetailLog 삭제
+                chatReportDetailLogRepository.deleteByChatReportId(cr.getChatReportId());
+                // ChatReportAvg 삭제
+                chatReportAvgRepository.deleteByChatReport_ChatReportId(cr.getChatReportId());
+            }
+            // ChatReport 삭제
+            chatReportRepository.deleteAll(chatReportsByCharacter);
+
+            // 1-3. Simulation 관련 데이터 삭제
+            List<Simulation> simulations = simulationRepository.findByCharacterCharacterId(characterId);
+            for (Simulation sim : simulations) {
+                // SimulationMessage 삭제
+                simulationMessageRepository.deleteBySimulation_SimulationId(sim.getSimulationId());
+            }
+            // Simulation 삭제
+            simulationRepository.deleteAll(simulations);
+
+            // 1-4. 캐릭터 파일 삭제
+            fileUtil.deleteFile(character.getCharacterImg());
+            fileUtil.deleteFile(character.getFullDialogue());
+        }
+
+        // 2. 유저의 모든 캐릭터 삭제
+        userCharacterRepository.deleteAll(characters);
+
+        // 3. 유저 삭제
         userRepository.delete(user);
 
         return ApiResponse.success("탈퇴가 완료되었습니다.", null);
