@@ -1,6 +1,7 @@
 package mandarin.com.mandarin_backend.repository;
 
 import mandarin.com.mandarin_backend.entity.Simulation;
+import mandarin.com.mandarin_backend.entity.User;
 import mandarin.com.mandarin_backend.entity.UserCharacter;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -20,5 +21,11 @@ public interface SimulationRepository extends JpaRepository<Simulation, Long> {
 
     // 완료되지 않은 시뮬레이션 조회
     List<Simulation> findByCharacterAndIsFinishedFalse(UserCharacter character);
+
+    // 유저의 모든 시뮬레이션 조회
+    List<Simulation> findByUser(User user);
+
+    // 유저 ID로 시뮬레이션 조회
+    List<Simulation> findByUser_Id(Long userId);
 }
 
