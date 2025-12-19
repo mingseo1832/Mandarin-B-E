@@ -73,7 +73,9 @@ public class ChatService {
         Map<String, Object> simulationContext = new HashMap<>();
         simulationContext.put("character_age", character.getCharacterAge());
         simulationContext.put("relation_type", character.getRelationType());
-        simulationContext.put("meet_date", character.getMeetDate());
+        // meet_date: LocalDateTime을 ISO 문자열로 변환하여 전송 (Python에서 str로 기대)
+        simulationContext.put("meet_date", character.getMeetDate() != null 
+                ? character.getMeetDate().toString() : null);
         simulationContext.put("love_type", character.getLoveType());
         simulationContext.put("history_sum", character.getHistorySum());
         simulationContext.put("purpose", simulation.getPurpose().name());
@@ -83,6 +85,7 @@ public class ChatService {
 
         System.out.println("[Chat] 시뮬레이션 컨텍스트 - 나이: " + character.getCharacterAge()
             + ", 관계: " + character.getRelationType()
+            + ", 만난 날짜: " + character.getMeetDate()
             + ", 러브타입: " + character.getLoveType()
             + ", 목적: " + simulation.getPurpose()
             + ", 카테고리: " + simulation.getCategory());
@@ -171,8 +174,11 @@ public class ChatService {
                 reactionMap.put("positive_triggers", reactions.getPositiveTriggers().stream()
                         .map(trigger -> {
                             Map<String, String> triggerMap = new HashMap<>();
+                            triggerMap.put("keyword", trigger.getKeyword());
                             triggerMap.put("trigger", trigger.getTrigger());
                             triggerMap.put("reaction", trigger.getReaction());
+                            triggerMap.put("cause", trigger.getCause());
+                            triggerMap.put("solution", trigger.getSolution());
                             triggerMap.put("example", trigger.getExample());
                             return triggerMap;
                         })
@@ -183,8 +189,11 @@ public class ChatService {
                 reactionMap.put("negative_triggers", reactions.getNegativeTriggers().stream()
                         .map(trigger -> {
                             Map<String, String> triggerMap = new HashMap<>();
+                            triggerMap.put("keyword", trigger.getKeyword());
                             triggerMap.put("trigger", trigger.getTrigger());
                             triggerMap.put("reaction", trigger.getReaction());
+                            triggerMap.put("cause", trigger.getCause());
+                            triggerMap.put("solution", trigger.getSolution());
                             triggerMap.put("example", trigger.getExample());
                             return triggerMap;
                         })

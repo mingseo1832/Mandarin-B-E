@@ -1,12 +1,10 @@
 package mandarin.com.mandarin_backend.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
 
 @Data
 @Builder
@@ -19,17 +17,7 @@ public class ReportRequestDto {
      */
     private Long simulationId;
     
-    @JsonProperty("chat_logs")
-    private List<ChatLogDto> chatLogs;
-    
-    @JsonProperty("user_name")
-    private String userName;
-    
-    @JsonProperty("target_name")
-    private String targetName;
-    
-    @JsonProperty("scenario_type")
-    private String scenarioType;  // "FUTURE" 또는 "PAST"
+    private Long id; // User pk
 }
 
 
