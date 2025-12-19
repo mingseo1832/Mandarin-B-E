@@ -210,6 +210,13 @@ public class AnalysisService {
         }
     }
 
+    public String readDialogueContent(String dialoguePath) {
+        if (dialoguePath == null || dialoguePath.isEmpty()) {
+            throw new IllegalArgumentException("대화 파일 경로가 없습니다.");
+        }
+        return readDialogueFromFile(dialoguePath);
+    }
+
     /**
      * 이미 필터링된 텍스트로 페르소나 추출 (Python AI 분석)
      * 

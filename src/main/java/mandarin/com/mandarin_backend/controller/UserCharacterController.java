@@ -89,14 +89,26 @@ public class UserCharacterController {
             // 서비스 호출
             UserCharacter savedCharacter = characterService.createCharacter(dto, characterImg, fullDialogue);
 
+            String fullDialogueContent = null;
+
+            if (fullDialogue != null && !fullDialogue.isEmpty()) {
+                fullDialogueContent = new String(fullDialogue.getBytes(), StandardCharsets.UTF_8);
+            }
+
+            else if (savedCharacter.getFullDialogue() != null && !savedCharacter.getFullDialogue().isEmpty()) {
+                try {
+                    fullDialogueContent = analysisService.readDialogueContent(savedCharacter.getFullDialogue());
+                    System.out.println("[create] DB에서 파일 경로 읽기 성공. 파일 경로 : " + savedCharacter.getFullDialogue());
+                } catch (Exception e) {
+                    System.err.println("[create] DB에서 파일 경로 읽기 실패: " + e.getMessage());
+                }
+            }
+
             // 캐릭터 리포트 생성 (fullDialogue 파일이 있는 경우)
             if (fullDialogue != null && !fullDialogue.isEmpty() && dto.getKakaoName() != null) {
                 try {
                     // 1. 대화 파일 파싱하여 참여자 목록 조회
-                    String rawTextContent = new String(fullDialogue.getBytes(), StandardCharsets.UTF_8);
-                    ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(rawTextContent);
-                    System.out.println("--------------------------------");
-                    System.out.println("--------------------------------");
+                    ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(fullDialogueContent);
                     System.out.println("--------------------------------");
                     System.out.println("parsedData: " + parsedData);
                     
@@ -114,7 +126,7 @@ public class UserCharacterController {
                             savedCharacter,
                             kakaoName,
                             targetName,
-                            rawTextContent
+                            fullDialogueContent
                         );
                         System.out.println("[Create] 캐릭터 리포트 생성 완료 - 캐릭터ID: " + savedCharacter.getCharacterId());
                     } else {
@@ -124,6 +136,8 @@ public class UserCharacterController {
                     System.err.println("[Create] 캐릭터 리포트 생성 실패: " + e.getMessage());
                     // 리포트 생성 실패해도 캐릭터 생성은 성공으로 처리
                 }
+            } else {
+                System.out.println("[create] 리포트 생성 조건을 충족하지 못했습니다: fullDialogueContent " + (fullDialogueContent != null ? "있음" : "없음"));
             }
 
             return ResponseEntity.ok(Map.of("code", 200));
