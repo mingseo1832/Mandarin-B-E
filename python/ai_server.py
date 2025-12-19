@@ -59,8 +59,11 @@ class SpeechStyleAnalysis(BaseModel):
 
 class ReactionTrigger(BaseModel):
     """상대방의 특정 말에 대한 반응 트리거"""
+    keyword: str = Field(description="갈등 상황을 한 단어로 표현한 키워드, 캐릭터 리포트에서 사용함.(예: '비난', '무관심', '짜증', '비아냥', '회피')")
     trigger: str = Field(description="상대방(사용자)이 한 말/행동/주제 (예: '칭찬', '약속 변경', '애정 표현')")
     reaction: str = Field(description="그에 대한 이 사람의 반응 패턴 (예: '기분 좋아하며 이모티콘 많이 사용', '짜증내며 단답으로 변함')")
+    cause: str = Field(description="갈등이 발생한 구체적인 원인 (예: '공감이 부족하고 지속적으로 비난하여 감정이 상함', '비아냥대는 말투를 사용하여 불편함을 느끼게 함', '갈등을 해결하려 하지 않고 회피하거나 변명으로 무마하려고 함')")
+    solution: str = Field(description="갈등 상황을 해결하기 위한 구체적인 조언. 갈등 원인을 고려하여 제시")
     example: str = Field(description="실제 대화에서 해당 반응이 나타난 예시 문장")
 
 
@@ -99,6 +102,7 @@ class SimulationContext(BaseModel):
     history_sum: Optional[str] = Field(default=None, description="사용자와 상대간의 이야기 요약")
     purpose: Literal["FUTURE", "PAST"] = Field(description="시뮬레이션 목적")
     category: str = Field(description="구체적인 상황 카테고리")
+    meet_date: Optional[str] = Field(default=None, description="만난 날짜")
 
 
 class ChatRequest(BaseModel):
@@ -455,6 +459,13 @@ def generate_reply(
 - 나이: {simulation_context.character_age}세 (이 나이대에 맞는 자연스러운 대화를 해주세요)
 - 현재 관계: {get_relation_type_name(simulation_context.relation_type)}
 - {love_type_info}
+"""
+
+        #만난 날짜가 있으면 추가
+        if simulation_context.meet_date:
+            context_prompt += f"- 만난 날짜: {simulation_context.meet_date}\n"
+            
+        context_prompt += f"""
 
 [시뮬레이션 상황]
 - 목적: {"미래의 불확실한 상황을 미리 연습해보는 시뮬레이션" if simulation_context.purpose == "FUTURE" else "과거에 후회되는 상황을 다시 시도해보는 시뮬레이션"}
@@ -678,20 +689,32 @@ def extract_negative_triggers_from_recent(
         부정적 반응 트리거 리스트 (최대 3개)
     """
     system_prompt = f"""당신은 대화 분석 전문가입니다.
-다음 대화 로그에서 '{target_name}'이 부정적으로 반응한 상황을 찾아주세요.
+다음 대화 로그에서 '{target_name}'이 **확실하게 부정적으로 반응한 갈등 상황**을 찾아주세요.
+
+[중요: 갈등 상황 판단 기준]
+다음 조건을 모두 만족하는 경우만 갈등 상황으로 판단하세요:
+1. '{target_name}'이 명백하게 화를 내거나, 불편해하거나, 거부하거나, 부정적인 감정을 표현함
+2. 그 순간 이전에 '{user_name}'이 한 말이나 행동이 직접적으로 갈등 상황을 유발함.
+3. 대화 흐름이 악화되거나 관계에 부정적 영향을 미침
+4. 단순한 농담이나 상황극 등이 아닌 실제 갈등 상황을 유발할 수 있는 경우
+5. 대화 주체인 둘 사이 이야기에만 해당됨. 외부 요인(예: 외부 사람, 환경 등)은 제외함.
 
 [분석 지침]
-1. '{target_name}'이 화를 내거나, 불편해하거나, 거부하거나, 부정적인 감정을 표현한 순간을 찾으세요
-2. 그 순간 이전에 '{user_name}'이 한 말이나 행동이 무엇이었는지 파악하세요
-3. 가장 최근 대화부터 분석하여 가장 부정적이었던 반응을 찾으세요
+1. '{target_name}'이 화를 내거나, 불편해하거나, 거부하거나, 부정적인 감정을 **명확하게** 표현한 순간을 찾으세요
+2. 그 순간 이전에 '{user_name}'이 한 말이나 행동이 무엇이었는지 정확히 파악하세요
+3. 가장 최근 대화부터 분석하여 **가장 심각하고 확실히 부정적이었던 반응**을 찾으세요
 4. 각 부정적 반응에 대해 다음 정보를 추출하세요:
-   - trigger: '{user_name}'이 한 말/행동/주제 (예: '약속 취소', '비판적인 말', '애정 표현 부족')
-   - reaction: '{target_name}'의 부정적 반응 패턴 (예: '짜증내며 단답으로 변함', '무시하거나 답장 안 함')
-   - example: 실제 대화에서 해당 반응이 나타난 예시 문장 (대화 형식으로)
+    - keyword: 갈등 상황을 한 단어로 표현한 키워드 (예: '비난', '무관심', '짜증', '비아냥', '회피', '무시')
+    - trigger: '{user_name}'이 한 구체적인 말/행동/주제 (예: '약속 취소', '비판적인 말', '애정 표현 부족')
+    - reaction: '{target_name}'의 명확한 부정적 반응 패턴 (예: '짜증내며 단답으로 변함', '무시하거나 답장 안 함')
+    - cause: 갈등이 발생한 구체적인 원인 분석 (왜 대화가 갈등으로 변했는지, 무엇이 갈등을 유발하는 원인이 되는지)
+    - solution: 갈등 상황을 해결하기 위한 구체적인 조언. 갈등의 원인을 고려하여, 어떻게 하면 갈등을 해결하거나 예방할 수 있는지 200자 이내로 제시
+    - example: 실제 대화에서 해당 반응이 나타난 예시 문장 (대화 형식으로)
 
 [출력 형식]
 - negative_triggers: 최대 3개 (가장 부정적이었던 것부터 우선순위)
-- 각 trigger는 trigger, reaction, example 필드를 포함해야 합니다"""
+- 각 trigger는 keyword, trigger, reaction, cause, solution, example 필드를 포함해야 합니다
+- 갈등 상황이 3개 미만이면 발견된 것만 작성하되, 확실한 갈등 상황만 포함하세요"""
 
     analysis_prompt = f"""다음 대화를 분석해주세요.
 
@@ -702,7 +725,10 @@ def extract_negative_triggers_from_recent(
 [대화 로그]
 {text_content}
 
-위 대화에서 {target_name}이 부정적으로 반응한 상황을 최대 3개 찾아주세요. 가장 부정적이었던 것부터 우선순위를 매겨주세요."""
+위 대화에서 {target_name}이 **확실하게 부정적으로 반응한 상황**을 최대 3개 찾아주세요. 
+장난이나 상황극, 금방 해소될만한 사소한 갈등이 아닌, 장기적으로 관계에 부정적 영향을 미칠 수 있는 **명확한 갈등 상황**만 추출해주세요.
+가장 부정적이었던 것부터 우선순위를 매겨주세요.
+각 갈등 상황에 대해 구체적이고 실용적인 해결 방안도 함께 제시해주세요."""
 
     try:
         response = client.responses.parse(
