@@ -80,25 +80,27 @@ public class ChatService {
         Map<String, Object> simulationContext = new HashMap<>();
         simulationContext.put("character_age", character.getCharacterAge());
         
-        // [수정됨] Enum -> String 변환 (Null 안전 처리)
-        simulationContext.put("relation_type", String.valueOf(character.getRelationType()));
+        // [수정됨] relation_type: Python이 int를 기대함
+        simulationContext.put("relation_type", character.getRelationType());
             
-        // [수정됨] 날짜 -> String 변환
+        // [수정됨] meet_date: Python이 Optional[str]을 기대함 (null 허용)
         simulationContext.put("meet_date", 
-            character.getMeetDate() != null ? character.getMeetDate().toString() : "");
+            character.getMeetDate() != null ? character.getMeetDate().toString() : null);
             
-        // [수정됨] Enum -> String 변환
+        // [수정됨] love_type: Python이 int를 기대함 (기본값 16)
         simulationContext.put("love_type", 
-            character.getLoveType() != null ? character.getLoveType().toString() : "UNKNOWN");
+            character.getLoveType() != null ? character.getLoveType() : 16);
             
-        simulationContext.put("history_sum", 
-            character.getHistorySum() != null ? character.getHistorySum() : "");
+        // [수정됨] history_sum: Python이 Optional[str]을 기대함 (null 허용)
+        simulationContext.put("history_sum", character.getHistorySum());
             
+        // [수정됨] purpose: Python이 "FUTURE" 또는 "PAST"를 기대함
         simulationContext.put("purpose", 
-            simulation.getPurpose() != null ? simulation.getPurpose().name() : "DATING");
+            simulation.getPurpose() != null ? simulation.getPurpose().name() : "FUTURE");
             
+        // [수정됨] category: Python이 str을 기대함
         simulationContext.put("category", 
-            simulation.getCategory() != null ? simulation.getCategory().name() : "DEFAULT");
+            simulation.getCategory() != null ? simulation.getCategory().name() : "RELATION_TENSION");
         
         requestBody.put("simulation_context", simulationContext);
         
@@ -274,42 +276,42 @@ public class ChatService {
             map.put("speech_style", speechStyleMap);
         }
         
-        // 3. 반응 패턴 (Reaction Patterns) - [Null 안전 처리 적용됨]
+        // 3. 반응 패턴 (Reaction Patterns) - Python ReactionTrigger 모델에 맞춰 6개 필드 모두 전송
         if (personaDto.getReactionPatterns() != null) {
             Map<String, Object> reactionPatterns = new HashMap<>();
             
-            // 3-1. 긍정 패턴 변환
+            // 3-1. 긍정 패턴 변환 (Python ReactionTrigger: keyword, trigger, reaction, cause, solution, example)
             List<Map<String, String>> positiveList = new ArrayList<>();
             if (personaDto.getReactionPatterns().getPositiveTriggers() != null) {
                 for (var item : personaDto.getReactionPatterns().getPositiveTriggers()) {
                     Map<String, String> pyItem = new HashMap<>();
                     
-                    // [핵심] DB 값이 null이면 ""(빈 문자열)로 대치
-                    String safeTrigger = item.getTrigger() != null ? item.getTrigger() : "";
-                    String safeReaction = item.getReaction() != null ? item.getReaction() : "";
-
-                    pyItem.put("cause", safeTrigger); 
-                    pyItem.put("keyword", safeTrigger); 
-                    pyItem.put("solution", safeReaction);
+                    // [수정됨] 6개 필드 모두 전송, null이면 빈 문자열로 대치
+                    pyItem.put("keyword", item.getKeyword() != null ? item.getKeyword() : "");
+                    pyItem.put("trigger", item.getTrigger() != null ? item.getTrigger() : "");
+                    pyItem.put("reaction", item.getReaction() != null ? item.getReaction() : "");
+                    pyItem.put("cause", item.getCause() != null ? item.getCause() : "");
+                    pyItem.put("solution", item.getSolution() != null ? item.getSolution() : "");
+                    pyItem.put("example", item.getExample() != null ? item.getExample() : "");
                     
                     positiveList.add(pyItem);
                 }
             }
             reactionPatterns.put("positive_triggers", positiveList);
 
-            // 3-2. 부정 패턴 변환
+            // 3-2. 부정 패턴 변환 (동일하게 6개 필드 모두 전송)
             List<Map<String, String>> negativeList = new ArrayList<>();
             if (personaDto.getReactionPatterns().getNegativeTriggers() != null) {
                 for (var item : personaDto.getReactionPatterns().getNegativeTriggers()) {
                     Map<String, String> pyItem = new HashMap<>();
                     
-                    // [핵심] 여기도 Null 안전 처리
-                    String safeTrigger = item.getTrigger() != null ? item.getTrigger() : "";
-                    String safeReaction = item.getReaction() != null ? item.getReaction() : "";
-
-                    pyItem.put("cause", safeTrigger);
-                    pyItem.put("keyword", safeTrigger);
-                    pyItem.put("solution", safeReaction);
+                    // [수정됨] 6개 필드 모두 전송, null이면 빈 문자열로 대치
+                    pyItem.put("keyword", item.getKeyword() != null ? item.getKeyword() : "");
+                    pyItem.put("trigger", item.getTrigger() != null ? item.getTrigger() : "");
+                    pyItem.put("reaction", item.getReaction() != null ? item.getReaction() : "");
+                    pyItem.put("cause", item.getCause() != null ? item.getCause() : "");
+                    pyItem.put("solution", item.getSolution() != null ? item.getSolution() : "");
+                    pyItem.put("example", item.getExample() != null ? item.getExample() : "");
                     
                     negativeList.add(pyItem);
                 }
