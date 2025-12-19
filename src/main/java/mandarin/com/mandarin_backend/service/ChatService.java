@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -80,8 +81,7 @@ public class ChatService {
         simulationContext.put("character_age", character.getCharacterAge());
         
         // [수정됨] Enum -> String 변환 (Null 안전 처리)
-        simulationContext.put("relation_type", 
-            character.getRelationType() != null ? character.getRelationType().toString() : "UNKNOWN");
+        simulationContext.put("relation_type", String.valueOf(character.getRelationType()));
             
         // [수정됨] 날짜 -> String 변환
         simulationContext.put("meet_date", 
@@ -244,57 +244,80 @@ public class ChatService {
     }
 
     /**
-     * Python 서버 규격에 맞춰 페르소나 데이터를 변환 (Null -> 빈 문자열 처리)
+     * Python 서버 규격에 맞춰 페르소나 데이터를 변환 (이름, 말투 + Null 안전 리액션)
      */
     private Map<String, Object> convertPersonaForPython(UserPersonaDto personaDto) {
         Map<String, Object> map = new HashMap<>();
         
-        // 반응 패턴이 없으면 빈 맵 반환
-        if (personaDto.getReactionPatterns() == null) {
-            return map;
-        }
+        // 1. 기본 정보 (이름) 추가 [기존 코드에서 복구]
+        map.put("name", personaDto.getName());
 
-        Map<String, Object> reactionPatterns = new HashMap<>();
-        
-        // 1. 긍정 패턴 변환
-        List<Map<String, String>> positiveList = new ArrayList<>();
-        if (personaDto.getReactionPatterns().getPositiveTriggers() != null) {
-            for (var item : personaDto.getReactionPatterns().getPositiveTriggers()) {
-                Map<String, String> pyItem = new HashMap<>();
-                
-                // [핵심] DB 값이 null이면 ""(빈 문자열)로 대치
-                String safeTrigger = item.getTrigger() != null ? item.getTrigger() : "";
-                String safeReaction = item.getReaction() != null ? item.getReaction() : "";
-
-                pyItem.put("cause", safeTrigger); 
-                pyItem.put("keyword", safeTrigger); 
-                pyItem.put("solution", safeReaction);
-                
-                positiveList.add(pyItem);
+        // 2. 말투 (Speech Style) 추가 [기존 코드에서 복구]
+        if (personaDto.getSpeechStyle() != null) {
+            Map<String, Object> speechStyleMap = new HashMap<>();
+            SpeechStyleDto style = personaDto.getSpeechStyle();
+            
+            speechStyleMap.put("politeness_level", style.getPolitenessLevel());
+            speechStyleMap.put("tone", style.getTone());
+            speechStyleMap.put("common_endings", style.getCommonEndings());
+            speechStyleMap.put("frequent_interjections", style.getFrequentInterjections());
+            speechStyleMap.put("distinctive_habits", style.getDistinctiveHabits());
+            speechStyleMap.put("sample_sentences", style.getSampleSentences());
+            
+            if (style.getEmojiUsage() != null) {
+                Map<String, Object> emojiMap = new HashMap<>();
+                emojiMap.put("frequency", style.getEmojiUsage().getFrequency());
+                emojiMap.put("preferred_type", style.getEmojiUsage().getPreferredType());
+                emojiMap.put("laugh_sound", style.getEmojiUsage().getLaughSound());
+                speechStyleMap.put("emoji_usage", emojiMap);
             }
+            map.put("speech_style", speechStyleMap);
         }
-        reactionPatterns.put("positive_triggers", positiveList);
-
-        // 2. 부정 패턴 변환
-        List<Map<String, String>> negativeList = new ArrayList<>();
-        if (personaDto.getReactionPatterns().getNegativeTriggers() != null) {
-            for (var item : personaDto.getReactionPatterns().getNegativeTriggers()) {
-                Map<String, String> pyItem = new HashMap<>();
-                
-                // [핵심] 여기도 Null 안전 처리
-                String safeTrigger = item.getTrigger() != null ? item.getTrigger() : "";
-                String safeReaction = item.getReaction() != null ? item.getReaction() : "";
-
-                pyItem.put("cause", safeTrigger);
-                pyItem.put("keyword", safeTrigger);
-                pyItem.put("solution", safeReaction);
-                
-                negativeList.add(pyItem);
-            }
-        }
-        reactionPatterns.put("negative_triggers", negativeList);
         
-        map.put("reaction_patterns", reactionPatterns);
+        // 3. 반응 패턴 (Reaction Patterns) - [Null 안전 처리 적용됨]
+        if (personaDto.getReactionPatterns() != null) {
+            Map<String, Object> reactionPatterns = new HashMap<>();
+            
+            // 3-1. 긍정 패턴 변환
+            List<Map<String, String>> positiveList = new ArrayList<>();
+            if (personaDto.getReactionPatterns().getPositiveTriggers() != null) {
+                for (var item : personaDto.getReactionPatterns().getPositiveTriggers()) {
+                    Map<String, String> pyItem = new HashMap<>();
+                    
+                    // [핵심] DB 값이 null이면 ""(빈 문자열)로 대치
+                    String safeTrigger = item.getTrigger() != null ? item.getTrigger() : "";
+                    String safeReaction = item.getReaction() != null ? item.getReaction() : "";
+
+                    pyItem.put("cause", safeTrigger); 
+                    pyItem.put("keyword", safeTrigger); 
+                    pyItem.put("solution", safeReaction);
+                    
+                    positiveList.add(pyItem);
+                }
+            }
+            reactionPatterns.put("positive_triggers", positiveList);
+
+            // 3-2. 부정 패턴 변환
+            List<Map<String, String>> negativeList = new ArrayList<>();
+            if (personaDto.getReactionPatterns().getNegativeTriggers() != null) {
+                for (var item : personaDto.getReactionPatterns().getNegativeTriggers()) {
+                    Map<String, String> pyItem = new HashMap<>();
+                    
+                    // [핵심] 여기도 Null 안전 처리
+                    String safeTrigger = item.getTrigger() != null ? item.getTrigger() : "";
+                    String safeReaction = item.getReaction() != null ? item.getReaction() : "";
+
+                    pyItem.put("cause", safeTrigger);
+                    pyItem.put("keyword", safeTrigger);
+                    pyItem.put("solution", safeReaction);
+                    
+                    negativeList.add(pyItem);
+                }
+            }
+            reactionPatterns.put("negative_triggers", negativeList);
+            
+            map.put("reaction_patterns", reactionPatterns);
+        }
         
         return map;
     }
