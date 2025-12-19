@@ -72,6 +72,7 @@ public class ChatService {
         Map<String, Object> simulationContext = new HashMap<>();
         simulationContext.put("character_age", character.getCharacterAge());
         simulationContext.put("relation_type", character.getRelationType());
+        simulationContext.put("meet_date", character.getMeetDate());
         simulationContext.put("love_type", character.getLoveType());
         simulationContext.put("history_sum", character.getHistorySum());
         simulationContext.put("purpose", simulation.getPurpose().name());
