@@ -105,7 +105,7 @@ public class UserCharacterController {
             }
 
             // 캐릭터 리포트 생성 (fullDialogue 파일이 있는 경우)
-            if (fullDialogue != null && !fullDialogue.isEmpty() && dto.getKakaoName() != null) {
+            if (fullDialogueContent != null && !fullDialogueContent.isEmpty() && dto.getKakaoName() != null) {
                 try {
                     // 1. 대화 파일 파싱하여 참여자 목록 조회
                     ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(fullDialogueContent);
