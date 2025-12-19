@@ -87,7 +87,7 @@ public class ChatService {
             + ", 카테고리: " + simulation.getCategory());
 
         // 7. Python 서버 호출 (POST /chat)
-        ChatResponseDto response = webClient.post()
+       try{ ChatResponseDto response = webClient.post()
                 .uri("/chat")
                 .bodyValue(requestBody)
                 .retrieve()
@@ -109,6 +109,16 @@ public class ChatService {
         }
 
         return response;
+
+} catch (WebClientResponseException.UnprocessableEntity e) {
+    // ⭐ 여기가 핵심입니다! Python이 알려주는 에러 원인을 출력합니다.
+    String errorBody = e.getResponseBodyAsString();
+    System.err.println("==========================================");
+    System.err.println("🚨 [Python 422 에러 상세 내용] 🚨");
+    System.err.println("내용: " + errorBody);
+    System.err.println("==========================================");
+    throw e; // 에러를 다시 던져서 상위 처리에 맡김
+}
     }
 
     /**
