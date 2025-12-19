@@ -58,10 +58,10 @@ class SpeechStyleAnalysis(BaseModel):
 
 
 class ReactionTrigger(BaseModel):
-    """상대방의 특정 말에 대한 반응 트리거"""
+    """사용자의 특정 말에 대한 반응 트리거"""
     keyword: str = Field(description="갈등 상황을 한 단어로 표현한 키워드, 캐릭터 리포트에서 사용함.(예: '비난', '무관심', '짜증', '비아냥', '회피')")
-    trigger: str = Field(description="상대방(사용자)이 한 말/행동/주제 (예: '칭찬', '약속 변경', '애정 표현')")
-    reaction: str = Field(description="그에 대한 이 사람의 반응 패턴 (예: '기분 좋아하며 이모티콘 많이 사용', '짜증내며 단답으로 변함')")
+    trigger: str = Field(description="사용자가 한 말/행동/주제 (예: '칭찬', '약속 변경', '애정 표현')")
+    reaction: str = Field(description="그에 대한 상대방의 반응 패턴 (예: '기분 좋아하며 이모티콘 많이 사용', '짜증내며 단답으로 변함')")
     cause: str = Field(description="갈등이 발생한 구체적인 원인 (예: '공감이 부족하고 지속적으로 비난하여 감정이 상함', '비아냥대는 말투를 사용하여 불편함을 느끼게 함', '갈등을 해결하려 하지 않고 회피하거나 변명으로 무마하려고 함')")
     solution: str = Field(description="갈등 상황을 해결하기 위한 구체적인 조언. 갈등 원인을 고려하여 제시")
     example: str = Field(description="실제 대화에서 해당 반응이 나타난 예시 문장")
@@ -70,12 +70,12 @@ class ReactionTrigger(BaseModel):
 class ReactionAnalysis(BaseModel):
     """긍정/부정 반응 분석"""
     positive_triggers: List[ReactionTrigger] = Field(
-        description="상대방(사용자)의 어떤 말/행동에 긍정적으로 반응했는지 TOP 3",
+        description="사용자의 어떤 말/행동에 긍정적으로 반응했는지 TOP 3",
         min_length=1,
         max_length=3
     )
     negative_triggers: List[ReactionTrigger] = Field(
-        description="상대방(사용자)의 어떤 말/행동에 부정적으로 반응했는지 TOP 3",
+        description="사용자의 어떤 말/행동에 부정적으로 반응했는지 TOP 3",
         min_length=1,
         max_length=3
     )
@@ -84,7 +84,7 @@ class ReactionAnalysis(BaseModel):
 class UserPersona(BaseModel):
     name: str = Field(description="사용자 이름")
     speech_style: SpeechStyleAnalysis
-    reaction_patterns: ReactionAnalysis = Field(description="상대방 말에 대한 긍정/부정 반응 패턴 분석")
+    reaction_patterns: ReactionAnalysis = Field(description="사용자 말에 대한 긍정/부정 반응 패턴 분석")
 
 
 # ============================================================
@@ -234,7 +234,8 @@ def build_system_prompt(text_content: str) -> str:
     - 갈등 상황 말투 : 단답, 짜증, 서운함 표현, 읽씹 등
 
 [반응 패턴 분석 지침 - 매우 중요!]
-4. 'reaction_patterns'는 분석 대상 인물이 상대방(대화 상대)의 말/행동에 어떻게 반응했는지를 분석합니다.
+4. 'reaction_patterns'는 **분석 대상 인물**이 상대방(대화 상대)의 말/행동에 어떻게 반응했는지를 분석합니다.
+    **사용자가 지정한 인물의 반응**입니다. 사용자의 반응을 분석하는 것으로 헷갈리거나 혼동해서는 안됩니다.
    **중요: 반응 패턴을 분석할 때는 반드시 전체 대화 맥락을 유지하세요.**
    - 상대방의 발화와 그 직후 분석 대상의 반응을 함께 분석해야 합니다.
    - 대화의 시간 순서를 고려하여, 어떤 말에 대한 반응인지 명확히 파악하세요.
@@ -493,9 +494,9 @@ def generate_reply(
 4. 나이에 맞는 어휘와 표현을 사용하세요.
 5. 관계 히스토리가 있다면 그 맥락을 고려하여 대화하세요.
 6. **중요: 카카오톡 메시지처럼 짧고 간결하게 대화하세요. 가능한 1문장으로 대답하세요.**
-7. 실제 대화를 하는 것처럼 빠른 응답이 중요합니다. 생각을 길게 하기 보다는 말투를 빠르게 반영하는데 집중하세요.
-8. 기계적인 응답을 최대한 배제해야 합니다. 사용자가 실제 사람과 대화하고 있다고 느낄 수 있도록 하세요.
-9. 말투 특성을 참고하는 것은 좋지만, 모든 메시지에 말투 특성을 반영하는 것은 몰입감을 떨어뜨릴 수 있습니다.
+7. 기계적인 응답을 최대한 배제해야 합니다. 사용자가 실제 사람과 대화하고 있다고 느낄 수 있도록 하세요.
+8. 말투 특성을 참고하는 것은 좋지만, 모든 메시지에 말투 특성을 반영하는 것은 몰입감을 떨어뜨릴 수 있습니다.
+9. 사용자가 실제로 대화를 한다고 느끼는 것이 가장 중요합니다. 사용자의 말을 정확히 이해하고 자연스럽게 반응하세요.
 """
     
     messages = [{"role": "system", "content": persona_prompt}]
