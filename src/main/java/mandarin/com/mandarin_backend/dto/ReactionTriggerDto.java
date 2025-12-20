@@ -48,4 +48,10 @@ public class ReactionTriggerDto {
      * 실제 대화에서 해당 반응이 나타난 예시 문장
      */
     private String example;
+
+    /**
+     * 이 갈등 요소의 위험도 점수 (0~100)
+     * AI가 산정한 위험도
+     */
+    private Integer dangerLevel;
 }
