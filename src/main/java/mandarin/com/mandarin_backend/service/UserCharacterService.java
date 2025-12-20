@@ -66,6 +66,7 @@ public class UserCharacterService {
         // [수정] 폴더 이름을 명시해서 저장합니다.
         String characterImgPath = fileUtil.saveFile(characterImg, "character");
         String dialoguePath = fileUtil.saveFile(fullDialogueFile, "dialogue");
+        if (dialoguePath == null) dialoguePath = "";
 
         UserCharacter newChar = UserCharacter.builder()
                 .user(user)
