@@ -320,12 +320,10 @@ public class AnalysisService {
         LocalDateTime baseTime = LocalDateTime.now();
         int messageOrder = 0;  // 전체 메시지 순서 (모든 ReportCharacter의 DetailLog에 걸쳐 순차 증가)
         
-        // 위험도 배열 (첫 번째가 가장 심각: 90, 70, 50)
-        int[] dangerLevels = {90, 70, 50};
-        
-        for (int i = 0; i < negativeTriggers.size(); i++) {
-            ReactionTriggerDto trigger = negativeTriggers.get(i);
-            int dangerLevel = i < dangerLevels.length ? dangerLevels[i] : 40;
+        // [수정] 하드코딩된 위험도 배열 제거, AI가 반환한 dangerLevel 사용
+        for (ReactionTriggerDto trigger : negativeTriggers) {
+            // AI가 산정한 위험도 점수 사용 (없으면 기본값 50)
+            int dangerLevel = trigger.getDangerLevel() != null ? trigger.getDangerLevel() : 50;
             
             // 1. ReportCharacter 저장
             ReportCharacter reportCharacter = ReportCharacter.builder()
@@ -607,6 +605,7 @@ public class AnalysisService {
                 .cause((String) triggerMap.get("cause"))
                 .solution((String) triggerMap.get("solution"))
                 .example((String) triggerMap.get("example"))
+                .dangerLevel(triggerMap.get("danger_level") != null ? ((Number) triggerMap.get("danger_level")).intValue() : null)
                 .build())
             .collect(Collectors.toList());
         

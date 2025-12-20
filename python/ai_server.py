@@ -65,6 +65,7 @@ class ReactionTrigger(BaseModel):
     cause: str = Field(description="갈등이 발생한 구체적인 원인 (예: '공감이 부족하고 지속적으로 비난하여 감정이 상함', '비아냥대는 말투를 사용하여 불편함을 느끼게 함', '갈등을 해결하려 하지 않고 회피하거나 변명으로 무마하려고 함')")
     solution: str = Field(description="갈등 상황을 해결하기 위한 구체적인 조언. 갈등 원인을 고려하여 제시")
     example: str = Field(description="실제 대화에서 해당 반응이 나타난 예시 문장")
+    danger_level: int = Field(description="갈등 상황의 위험도 점수(0-100). 관계에 미치는 부정적 영향의 심각도를 평가. 점수가 높을수록 더 부정적인 영향", ge=0, le=100)
 
 
 class ReactionAnalysis(BaseModel):
@@ -711,10 +712,18 @@ def extract_negative_triggers_from_recent(
     - cause: 갈등이 발생한 구체적인 원인 분석 (왜 대화가 갈등으로 변했는지, 무엇이 갈등을 유발하는 원인이 되는지)
     - solution: 갈등 상황을 해결하기 위한 구체적인 조언. 갈등의 원인을 고려하여, 어떻게 하면 갈등을 해결하거나 예방할 수 있는지 200자 이내로 제시
     - example: 실제 대화에서 해당 반응이 나타난 예시 문장 (대화 형식으로)
+    - danger_level: 이 갈등 요소의 위험도 점수 (0~100점)
+        * danger_level 평가 기준:
+          - 80~100점: 매우 심각한 갈등. 관계 파국으로 이어질 수 있는 수준. 상대방이 강하게 거부하거나 화를 내며, 관계 지속이 어려울 수 있음
+          - 60~79점: 심각한 갈등. 관계에 지속적인 부정적 영향을 미칠 수 있음. 상대방이 명확하게 불편함을 표현함
+          - 40~59점: 중간 수준의 갈등. 일시적 불편함이나 갈등이지만, 해결 가능한 수준
+          - 20~39점: 경미한 갈등. 사소한 불편함이나 오해 수준
+          - 0~19점: 매우 경미한 갈등. 거의 문제가 되지 않는 수준
+        * 갈등의 빈도, 강도, 지속성, 관계에 미치는 영향 등을 종합적으로 고려하여 점수를 산정하세요
 
 [출력 형식]
 - negative_triggers: 최대 3개 (가장 부정적이었던 것부터 우선순위)
-- 각 trigger는 keyword, trigger, reaction, cause, solution, example 필드를 포함해야 합니다
+- 각 trigger는 keyword, trigger, reaction, cause, solution, example, danger_level 필드를 포함해야 합니다
 - 갈등 상황이 3개 미만이면 발견된 것만 작성하되, 확실한 갈등 상황만 포함하세요"""
 
     analysis_prompt = f"""다음 대화를 분석해주세요.
@@ -729,7 +738,8 @@ def extract_negative_triggers_from_recent(
 위 대화에서 {target_name}이 **확실하게 부정적으로 반응한 상황**을 최대 3개 찾아주세요. 
 장난이나 상황극, 금방 해소될만한 사소한 갈등이 아닌, 장기적으로 관계에 부정적 영향을 미칠 수 있는 **명확한 갈등 상황**만 추출해주세요.
 가장 부정적이었던 것부터 우선순위를 매겨주세요.
-각 갈등 상황에 대해 구체적이고 실용적인 해결 방안도 함께 제시해주세요."""
+각 갈등 상황에 대해 구체적이고 실용적인 해결 방안도 함께 제시해주세요.
+각 갈등 상황의 위험도를 0~100점으로 평평가하여 danger_level 필드에 저장해주세요."""
 
     try:
         response = client.responses.parse(
