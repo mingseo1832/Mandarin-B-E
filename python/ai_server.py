@@ -633,12 +633,21 @@ def analyze_chat_performance(
 - metric_3: code="RPS", name="관계 회복력"'''}
 
 [key_conversations 작성 규칙]
+[key_conversations 작성 규칙]
 - 각 metric의 점수 산정에 가장 큰 영향을 준 대화 내역을 2-4개 메시지로 구성
+- **중요: 반드시 사용자(user)와 AI(assistant)의 주고받은 대화를 모두 포함해야 합니다**
+- **사용자 발화만으로는 안 되며, 그에 대한 AI의 응답도 반드시 포함해야 합니다**
 - role은 "user"(사용자) 또는 "assistant"(페르소나/상대방)
 - 대화의 맥락을 이해할 수 있도록 주고받은 메시지를 순서대로 포함
-- 예시: [
+- 최소 2개 이상의 메시지를 포함해야 하며, 사용자와 AI의 발화가 번갈아가며 나타나야 합니다
+- 예시 (올바른 형식): [
     {{"role": "user", "content": "미안해, 내가 잘못했어"}},
-    {{"role": "assistant", "content": "갑자기 왜 그래?"}}
+    {{"role": "assistant", "content": "갑자기 왜 그래?"}},
+    {{"role": "user", "content": "너한테 실수했어"}}
+  ]
+- 잘못된 예시 (사용자 발화만): [
+    {{"role": "user", "content": "미안해, 내가 잘못했어"}},
+    {{"role": "user", "content": "너한테 실수했어"}}
   ]
 
 [리포트 작성 규칙]
@@ -660,7 +669,11 @@ def analyze_chat_performance(
 [대화 로그]
 {logs_text}
 
-위 대화에서 {user_name}의 발언을 중심으로 시나리오 유형에 맞는 평가 지표로 분석해주세요."""
+위 대화에서 {user_name}의 발언을 중심으로 시나리오 유형에 맞는 평가 지표로 분석해주세요.
+
+**중요: key_conversations를 작성할 때는 반드시 사용자와 AI(assistant)의 주고받은 대화를 모두 포함해야 합니다. 
+사용자 발화만으로는 안 되며, 그에 대한 AI의 응답도 반드시 포함하여 대화의 맥락을 완전히 보여주어야 합니다.
+각 metric의 key_conversations는 최소 2개 이상의 메시지(사용자 + AI)를 포함해야 합니다.**"""
     
     try:
         response = client.responses.parse(
