@@ -204,6 +204,81 @@ public class UserCharacterController {
         }
     }
 
+    // UserCharacterController.java에 추가 (라인 205 근처, getCharacterReports 메서드 다음)
+/**
+ * 캐릭터 리포트 재생성
+ * POST /character/{characterId}/regenerate-report
+ * 
+ * DB에 저장된 fullDialogue 파일 경로를 사용하여 리포트를 재생성합니다.
+ */
+@PostMapping("/{characterId}/regenerate-report")
+public ResponseEntity<?> regenerateReport(@PathVariable Long characterId) {
+    try {
+        // 1. 캐릭터 조회
+        UserCharacter character = characterService.getCharacterById(characterId);
+        
+        // 2. fullDialogue 경로 확인
+        if (character.getFullDialogue() == null || character.getFullDialogue().isEmpty()) {
+            return error("대화 파일 경로가 없습니다.");
+        }
+        
+        // 3. kakaoName 확인
+        if (character.getKakaoName() == null || character.getKakaoName().isEmpty()) {
+            return error("kakaoName이 없습니다. 리포트 생성에 필요합니다.");
+        }
+        
+        // 4. DB에 저장된 파일 경로에서 파일 읽기
+        String fullDialogueContent = null;
+        try {
+            fullDialogueContent = analysisService.readDialogueContent(character.getFullDialogue());
+            System.out.println("[RegenerateReport] DB에서 파일 읽기 성공 - 경로: " + character.getFullDialogue());
+        } catch (Exception e) {
+            System.err.println("[RegenerateReport] 파일 읽기 실패: " + e.getMessage());
+            e.printStackTrace();
+            return error("파일 읽기 실패: " + e.getMessage());
+        }
+        
+        // 5. 참여자 목록 조회
+        ParsedChatDataDto parsedData = kakaoTalkParseService.parseInfo(fullDialogueContent);
+        List<String> participants = parsedData.getParticipants();
+        String kakaoName = character.getKakaoName();
+        String targetName = participants.stream()
+            .filter(name -> !name.equals(kakaoName))
+            .findFirst()
+            .orElse(null);
+        
+        if (targetName == null) {
+            return error("상대방을 찾을 수 없습니다. 참여자: " + participants);
+        }
+        
+        // 6. 리포트 재생성
+        analysisService.createReportCharacterFromFullDialogue(
+            character,
+            kakaoName,
+            targetName,
+            fullDialogueContent
+        );
+        
+        System.out.println("[RegenerateReport] 리포트 재생성 완료 - 캐릭터ID: " + characterId);
+        
+        return ResponseEntity.ok(Map.of(
+            "code", 200,
+            "message", "리포트 재생성 완료",
+            "characterId", characterId,
+            "filePath", character.getFullDialogue(),
+            "kakaoName", kakaoName,
+            "targetName", targetName
+        ));
+        
+    } catch (CharacterNotFoundException e) {
+        return error("캐릭터를 찾을 수 없습니다: " + characterId);
+    } catch (Exception e) {
+        System.err.println("[RegenerateReport] 리포트 재생성 실패: " + e.getMessage());
+        e.printStackTrace();
+        return error("리포트 재생성 실패: " + e.getMessage());
+    }
+}
+
     // ----------------- 공통 에러 응답 -----------------
     private ResponseEntity<?> error(String msg) {
         return ResponseEntity.badRequest().body(
