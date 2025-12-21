@@ -1,5 +1,7 @@
 package mandarin.com.mandarin_backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -53,5 +55,6 @@ public class ReactionTriggerDto {
      * 이 갈등 요소의 위험도 점수 (0~100)
      * AI가 산정한 위험도
      */
+    @JsonProperty("danger_level")
     private Integer dangerLevel;
 }
