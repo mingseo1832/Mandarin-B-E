@@ -633,7 +633,6 @@ def analyze_chat_performance(
 - metric_3: code="RPS", name="관계 회복력"'''}
 
 [key_conversations 작성 규칙]
-[key_conversations 작성 규칙]
 - 각 metric의 점수 산정에 가장 큰 영향을 준 대화 내역을 2-4개 메시지로 구성
 - **중요: 반드시 사용자(user)와 AI(assistant)의 주고받은 대화를 모두 포함해야 합니다**
 - **사용자 발화만으로는 안 되며, 그에 대한 AI의 응답도 반드시 포함해야 합니다**
@@ -654,7 +653,8 @@ def analyze_chat_performance(
 - summary: 대화 내용을 3줄로 요약
 - scenario_type: "{scenario_type}"
 - report.analysis: 전반적인 대화 흐름과 사용자의 태도에 대한 상세 분석 (200자 내외)
-- report.feedback: 구체적인 조언 (예: "상대방이 화를 낼 때는 ~~하게 반응하는 것이 좋습니다.")
+- report.feedback: 구체적인 조언(예: "상대방이 화를 낼 때는 ~~하게 반응하는 것이 좋습니다.")을 단계를 구분하지 않고 작성해주세요.
+- **1) 조언 2) 조언 3) 조언...** 의 형태가 되어서는 안됩니다.
 - report.overall_rating: 세 지표 점수의 평균값 (정수)"""
 
     analysis_prompt = f"""다음 대화를 분석해주세요.
