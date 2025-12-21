@@ -1,6 +1,7 @@
 package mandarin.com.mandarin_backend.controller;
 
 import lombok.RequiredArgsConstructor;
+import mandarin.com.mandarin_backend.dto.ChatReportAvgResponseDto;
 import mandarin.com.mandarin_backend.dto.ChatReportCreateRequestDto;
 import mandarin.com.mandarin_backend.dto.ChatReportResponseDto;
 import mandarin.com.mandarin_backend.service.ChatReportService;
@@ -35,7 +36,26 @@ public class ChatReportController {
         }
     }
 
-    // 2. 유저별 리포트 조회
+    // 2. 유저별 리포트 평균 조회
+    @GetMapping("/avg/{id}")
+    public ResponseEntity<Map<String, Object>> getReportAvgByUserId(@PathVariable("id") Long userId) {
+        try {
+            List<ChatReportAvgResponseDto> list = chatReportService.getChatReportAvgByUserId(userId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("code", 200);
+            response.put("data", list);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("code", 400);
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    // 3. 유저별 리포트 조회
     @GetMapping("/user/{id}")
     public ResponseEntity<Map<String, Object>> getReportsByUserId(@PathVariable("id") Long userId) {
         try {
@@ -54,7 +74,7 @@ public class ChatReportController {
         }
     }
 
-    // 3. 캐릭터별 리포트 조회
+    // 4. 캐릭터별 리포트 조회
     @GetMapping("/character/{character_id}")
     public ResponseEntity<Map<String, Object>> getReportsByCharacterId(@PathVariable("character_id") Long characterId) {
         try {
@@ -73,7 +93,7 @@ public class ChatReportController {
         }
     }
 
-    // 4. 리포트 생성 (POST)
+    // 5. 리포트 생성 (POST)
     @PostMapping("/create")
     public ResponseEntity<Map<String, Object>> createReport(@RequestBody ChatReportCreateRequestDto request) {
 
