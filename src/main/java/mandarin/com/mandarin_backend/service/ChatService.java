@@ -281,10 +281,10 @@ public class ChatService {
             Map<String, Object> reactionPatterns = new HashMap<>();
             
             // 3-1. 긍정 패턴 변환 (Python ReactionTrigger: keyword, trigger, reaction, cause, solution, example)
-            List<Map<String, String>> positiveList = new ArrayList<>();
+            List<Map<String, Object>> positiveList = new ArrayList<>();
             if (personaDto.getReactionPatterns().getPositiveTriggers() != null) {
                 for (var item : personaDto.getReactionPatterns().getPositiveTriggers()) {
-                    Map<String, String> pyItem = new HashMap<>();
+                    Map<String, Object> pyItem = new HashMap<>();
                     
                     // [수정됨] 6개 필드 모두 전송, null이면 빈 문자열로 대치
                     pyItem.put("keyword", item.getKeyword() != null ? item.getKeyword() : "");
@@ -293,6 +293,7 @@ public class ChatService {
                     pyItem.put("cause", item.getCause() != null ? item.getCause() : "");
                     pyItem.put("solution", item.getSolution() != null ? item.getSolution() : "");
                     pyItem.put("example", item.getExample() != null ? item.getExample() : "");
+                    pyItem.put("danger_level", item.getDangerLevel() != null ? item.getDangerLevel() : 0);
                     
                     positiveList.add(pyItem);
                 }
@@ -300,10 +301,10 @@ public class ChatService {
             reactionPatterns.put("positive_triggers", positiveList);
 
             // 3-2. 부정 패턴 변환 (동일하게 6개 필드 모두 전송)
-            List<Map<String, String>> negativeList = new ArrayList<>();
+            List<Map<String, Object>> negativeList = new ArrayList<>();
             if (personaDto.getReactionPatterns().getNegativeTriggers() != null) {
                 for (var item : personaDto.getReactionPatterns().getNegativeTriggers()) {
-                    Map<String, String> pyItem = new HashMap<>();
+                    Map<String, Object> pyItem = new HashMap<>();
                     
                     // [수정됨] 6개 필드 모두 전송, null이면 빈 문자열로 대치
                     pyItem.put("keyword", item.getKeyword() != null ? item.getKeyword() : "");
@@ -312,7 +313,7 @@ public class ChatService {
                     pyItem.put("cause", item.getCause() != null ? item.getCause() : "");
                     pyItem.put("solution", item.getSolution() != null ? item.getSolution() : "");
                     pyItem.put("example", item.getExample() != null ? item.getExample() : "");
-                    
+                    pyItem.put("danger_level", item.getDangerLevel() != null ? item.getDangerLevel() : 0);
                     negativeList.add(pyItem);
                 }
             }
