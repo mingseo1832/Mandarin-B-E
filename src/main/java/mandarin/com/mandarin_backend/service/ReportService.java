@@ -71,11 +71,15 @@ public class ReportService {
                 .bodyToMono(ReportResponseDto.class)
                 .block();
 
-        // 3. 리포트 DB 저장
+        // 3. 리포트 DB 저장 및 시뮬레이션 종료 표시
         if (response != null && response.getReport() != null) {
             saveReportToDb(simulation, user, character, response.getReport(), scenarioType);
             System.out.println("[Report] 리포트 저장 완료 - 시뮬레이션ID: " + simulationId);
-            
+
+            simulation.setIsFinished(true);
+            simulationRepository.save(simulation);
+            System.out.println("[Report] 시뮬레이션 종료 표시 완료 - 시뮬레이션ID: " + simulationId);
+
             // 4. 평균 점수 계산 및 ChatReportAvg 저장
             updateReportAverage(user);
             System.out.println("[Report] 평균 점수 업데이트 완료 - 사용자ID: " + user.getId());
