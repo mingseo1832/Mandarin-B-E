@@ -7,6 +7,8 @@ import mandarin.com.mandarin_backend.entity.*;
 import mandarin.com.mandarin_backend.repository.*;
 import org.springframework.stereotype.Service;
 
+import mandarin.com.mandarin_backend.dto.ChatReportAvgResponseDto;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -126,5 +128,20 @@ public class ChatReportService {
         }
 
         return ChatReportResponseDto.fromEntity(report);
+    }
+
+    // ----------------------------
+    // 5. 유저별 ChatReportAvg 리스트 조회 (내 리포트 평균 조회)
+    // ----------------------------
+    public List<ChatReportAvgResponseDto> getChatReportAvgByUserId(Long userId) {
+        List<ChatReportAvg> avgList = chatReportAvgRepository.findByUser_Id(userId);
+
+        if (avgList.isEmpty()) {
+            throw new IllegalArgumentException("해당 유저의 리포트 평균 정보가 없습니다.");
+        }
+
+        return avgList.stream()
+                .map(ChatReportAvgResponseDto::fromEntity)
+                .collect(Collectors.toList());
     }
 }
